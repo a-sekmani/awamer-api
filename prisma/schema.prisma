@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Domain models to be added in subsequent features:
+// User, UserProfile, UserRole, OnboardingResponse
+// Category, Path, Course, Section, Lesson, LessonContentBlock
+// PathEnrollment, LessonProgress, SectionProgress, CourseProgress,
+// PathProgress, LastPosition
+// Quiz, Question, Option, QuizAttempt
+// Project, ProjectSubmission
+// SubscriptionPlan, Subscription, Payment
+// Certificate
+// RefreshToken
