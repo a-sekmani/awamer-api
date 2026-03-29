@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(npx:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(.specify/scripts/bash/setup-plan.sh --json)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)",
+      "Bash(1:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Build a complete Auth module with 6 endpoints: register, login, logout, refresh, forgot-password, reset-password. Includes JWT strategy, password hashing, validation DTOs, httpOnly cookies, and transactional user creation.\" --json --short-name \"auth-module\" \"Complete Auth module with JWT authentication\")",
+      "Bash(.specify/scripts/bash/update-agent-context.sh claude:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Add comprehensive unit tests to the Auth module: 27 AuthService tests \\(register, login, refresh, logout, forgot-password, reset-password, sanitizeUser\\) + 3 AuthController tests \\(DTO validation, cookie setting, cookie clearing\\). Jest with mocks, no real database.\" --json --short-name \"auth-unit-tests\" \"Auth module unit tests with Jest\")"
     ]
   }
 }
