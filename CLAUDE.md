@@ -193,10 +193,10 @@ PORT=3001
 - certificate_issued
 
 ## Recent Changes
+- 006-users-unit-tests: Added TypeScript 5.x (Node.js 20 LTS) + Jest 29, @nestjs/testing, ts-jest, bcryptjs, class-validator, class-transformer
+- 005-users-module: Added TypeScript 5.x (Node.js 20 LTS) + NestJS 10, Prisma 6.19, bcryptjs, class-validator, class-transformer, @nestjs/throttler
 - 004-auth-unit-tests: Added TypeScript 5.x (Node.js 20 LTS) + Jest 29, @nestjs/testing, ts-jest, bcryptjs, class-validator
-- 003-auth-module: Added TypeScript 5.x (Node.js 20 LTS) + NestJS 10, @nestjs/passport, @nestjs/jwt, passport-jwt, bcrypt, class-validator, class-transformer, @nestjs/throttler, cookie-parser
-- 002-prisma-schema: Added TypeScript 5.x (Node.js 20 LTS) + Prisma 6.19, @prisma/client 6.19, NestJS 10
 
 ## Active Technologies
-- TypeScript 5.x (Node.js 20 LTS) + Jest 29, @nestjs/testing, ts-jest, bcryptjs, class-validator (004-auth-unit-tests)
-- N/A (mocked — no real database) (004-auth-unit-tests)
+- TypeScript 5.x (Node.js 20 LTS) + Jest 29, @nestjs/testing, ts-jest, bcryptjs, class-validator, class-transformer (006-users-unit-tests)
+- N/A (mocked) (006-users-unit-tests)

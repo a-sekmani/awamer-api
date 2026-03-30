@@ -77,7 +77,9 @@ const mockMailService = {
 
 const mockJwtService = {
   sign: jest.fn().mockReturnValue('mock_token'),
-  verify: jest.fn().mockReturnValue({ sub: 'user-uuid', email: 'test@example.com' }),
+  verify: jest
+    .fn()
+    .mockReturnValue({ sub: 'user-uuid', email: 'test@example.com' }),
 };
 
 const mockConfigService = {

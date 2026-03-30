@@ -54,7 +54,10 @@ export class AuthController {
   ) {
     const result = await this.authService.login(dto);
     this.setCookies(res, result.accessToken, result.refreshToken);
-    return { data: { user: result.user }, message: 'Login successful' };
+    return {
+      data: { user: result.user, accessToken: result.accessToken },
+      message: 'Login successful',
+    };
   }
 
   @Post('logout')

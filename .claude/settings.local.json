@@ -9,7 +9,13 @@
       "Bash(1:*)",
       "Bash(.specify/scripts/bash/create-new-feature.sh \"Build a complete Auth module with 6 endpoints: register, login, logout, refresh, forgot-password, reset-password. Includes JWT strategy, password hashing, validation DTOs, httpOnly cookies, and transactional user creation.\" --json --short-name \"auth-module\" \"Complete Auth module with JWT authentication\")",
       "Bash(.specify/scripts/bash/update-agent-context.sh claude:*)",
-      "Bash(.specify/scripts/bash/create-new-feature.sh \"Add comprehensive unit tests to the Auth module: 27 AuthService tests \\(register, login, refresh, logout, forgot-password, reset-password, sanitizeUser\\) + 3 AuthController tests \\(DTO validation, cookie setting, cookie clearing\\). Jest with mocks, no real database.\" --json --short-name \"auth-unit-tests\" \"Auth module unit tests with Jest\")"
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Add comprehensive unit tests to the Auth module: 27 AuthService tests \\(register, login, refresh, logout, forgot-password, reset-password, sanitizeUser\\) + 3 AuthController tests \\(DTO validation, cookie setting, cookie clearing\\). Jest with mocks, no real database.\" --json --short-name \"auth-unit-tests\" \"Auth module unit tests with Jest\")",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Build a complete Users module with 6 endpoints: get profile, update user, update profile, change password, submit onboarding, get onboarding status. All authenticated, with validation DTOs and standard response format.\" --json --short-name \"users-module\" \"Complete Users module with profile and onboarding\")",
+      "Bash(npm run:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh \"Add comprehensive unit tests for UsersModule covering UsersService \\(getMe, updateMe, updateProfile, changePassword, submitOnboarding, getOnboarding\\), UsersController \\(6 endpoints\\), and DTO validation \\(UpdateUserDto, ChangePasswordDto, SubmitOnboardingDto\\). Jest with mocks, no real database.\" --json --short-name \"users-unit-tests\" \"Users module unit tests with Jest\")",
+      "mcp__claude_ai_Postman__getWorkspaces",
+      "mcp__claude_ai_Postman__getCollections",
+      "mcp__claude_ai_Postman__updateCollectionRequest"
     ]
   }
 }
