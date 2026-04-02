@@ -15,7 +15,8 @@
       "Bash(.specify/scripts/bash/create-new-feature.sh \"Add comprehensive unit tests for UsersModule covering UsersService \\(getMe, updateMe, updateProfile, changePassword, submitOnboarding, getOnboarding\\), UsersController \\(6 endpoints\\), and DTO validation \\(UpdateUserDto, ChangePasswordDto, SubmitOnboardingDto\\). Jest with mocks, no real database.\" --json --short-name \"users-unit-tests\" \"Users module unit tests with Jest\")",
       "mcp__claude_ai_Postman__getWorkspaces",
       "mcp__claude_ai_Postman__getCollections",
-      "mcp__claude_ai_Postman__updateCollectionRequest"
+      "mcp__claude_ai_Postman__updateCollectionRequest",
+      "Bash(.specify/scripts/bash/create-new-feature.sh I want to add Email Verification as a mandatory step after registration and before onboarding.\n\nUpdated Flow:\nRegister → Automatic OTP Sending → Email Verification \\(6 digits\\) → Onboarding → Dashboard:*)"
     ]
   }
 }

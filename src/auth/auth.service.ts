@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -23,6 +25,10 @@ import { User } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 12;
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+const VERIFICATION_CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const VERIFICATION_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const VERIFICATION_RATE_LIMIT_MAX = 3;
+const VERIFICATION_MAX_ATTEMPTS = 5;
 
 @Injectable()
 export class AuthService {
@@ -89,6 +95,15 @@ export class AuthService {
     });
 
     const { accessToken, refreshToken } = await this.generateTokens(user);
+
+    try {
+      await this.sendVerificationCode(user.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to send verification code during registration: ${message}`,
+      );
+    }
 
     return {
       user: this.sanitizeUser(user),
@@ -245,6 +260,136 @@ export class AuthService {
     });
   }
 
+  async sendVerificationCode(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    if (user.emailVerified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    const windowStart = new Date(
+      Date.now() - VERIFICATION_RATE_LIMIT_WINDOW_MS,
+    );
+    const recentCount = await this.prisma.emailVerification.count({
+      where: {
+        userId,
+        createdAt: { gte: windowStart },
+      },
+    });
+    if (recentCount >= VERIFICATION_RATE_LIMIT_MAX) {
+      throw new HttpException(
+        'Too many verification requests. Please try again later',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const code = String(crypto.randomInt(100000, 999999));
+    const expiresAt = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MS);
+
+    await this.prisma.$transaction([
+      this.prisma.emailVerification.updateMany({
+        where: { userId, used: false },
+        data: { used: true },
+      }),
+      this.prisma.emailVerification.create({
+        data: {
+          userId,
+          code,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    await this.mailService.sendVerificationEmail(user.email, code, user.name);
+  }
+
+  async verifyEmail(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    if (user.emailVerified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    const verification = await this.prisma.emailVerification.findFirst({
+      where: {
+        userId,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!verification) {
+      throw new BadRequestException(
+        'No valid verification code found. Please request a new one',
+      );
+    }
+
+    if (verification.attempts >= VERIFICATION_MAX_ATTEMPTS) {
+      await this.prisma.emailVerification.update({
+        where: { id: verification.id },
+        data: { used: true },
+      });
+      throw new BadRequestException(
+        'Verification code has been invalidated due to too many attempts. Please request a new one',
+      );
+    }
+
+    if (verification.code !== code) {
+      const newAttempts = verification.attempts + 1;
+      await this.prisma.emailVerification.update({
+        where: { id: verification.id },
+        data: {
+          attempts: newAttempts,
+          used: newAttempts >= VERIFICATION_MAX_ATTEMPTS ? true : undefined,
+        },
+      });
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.emailVerification.update({
+        where: { id: verification.id },
+        data: { used: true },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { emailVerified: true },
+      }),
+    ]);
+
+    return { emailVerified: true };
+  }
+
+  async getLatestCodeByEmail(email: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const verification = await this.prisma.emailVerification.findFirst({
+      where: { userId: user.id, used: false },
+      orderBy: { createdAt: 'desc' },
+      select: { code: true },
+    });
+    if (!verification) {
+      throw new BadRequestException('No verification code found');
+    }
+
+    return verification.code;
+  }
+
   private async generateTokens(user: User) {
     const payload: JwtPayload = { sub: user.id, email: user.email };
 
@@ -272,6 +417,8 @@ export class AuthService {
       country: user.country,
       locale: user.locale,
       status: user.status,
+      emailVerified: user.emailVerified,
+      requiresVerification: !user.emailVerified,
     };
   }
 }

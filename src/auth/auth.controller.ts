@@ -1,8 +1,12 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
+  Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  Param,
   Post,
   Req,
   Res,
@@ -15,6 +19,7 @@ import {
   LoginDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  VerifyEmailDto,
 } from './dto';
 import { Public } from '../common/decorators/public.decorator';
 import { ConfigService } from '@nestjs/config';
@@ -103,6 +108,49 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);
     return { data: null, message: 'Password reset successful' };
+  }
+
+  @Post('send-verification')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async sendVerification(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    await this.authService.sendVerificationCode(userId);
+    return { data: null, message: 'Verification code sent to your email' };
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async verifyEmail(@Req() req: Request, @Body() dto: VerifyEmailDto) {
+    const { userId } = req.user as { userId: string };
+    const result = await this.authService.verifyEmail(userId, dto.code);
+    return { data: result, message: 'Email verified successfully' };
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async resendVerification(@Req() req: Request) {
+    const { userId } = req.user as { userId: string };
+    await this.authService.sendVerificationCode(userId);
+    return { data: null, message: 'Verification code resent to your email' };
+  }
+
+  @Public()
+  @Get('dev/latest-code/:email')
+  @HttpCode(HttpStatus.OK)
+  async getLatestCode(@Param('email') email: string) {
+    if (this.isProduction) {
+      throw new ForbiddenException('This endpoint is not available in production');
+    }
+
+    try {
+      const code = await this.authService.getLatestCodeByEmail(email);
+      return { data: { code }, message: 'Success' };
+    } catch {
+      throw new NotFoundException('No verification code found for this email');
+    }
   }
 
   private setCookies(res: Response, accessToken: string, refreshToken: string) {

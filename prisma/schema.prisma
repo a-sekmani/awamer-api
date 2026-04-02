@@ -152,6 +152,7 @@ model User {
   country      String?
   locale       String     @default("ar")
   status       UserStatus @default(ACTIVE)
+  emailVerified          Boolean    @default(false)
   refreshToken       String?
   passwordResetToken   String?
   passwordResetExpires DateTime?
@@ -162,6 +163,7 @@ model User {
   profile              UserProfile?
   roles                UserRole[]
   onboardingResponses  OnboardingResponse[]
+  emailVerifications   EmailVerification[]
   pathEnrollments      PathEnrollment[]
   lessonProgress       LessonProgress[]
   sectionProgress      SectionProgress[]
@@ -176,6 +178,22 @@ model User {
 
   @@index([email])
   @@map("users")
+}
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  userId    String
+  code      String   @db.VarChar(6)
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, used, expiresAt])
+  @@map("email_verifications")
 }
 
 model UserProfile {

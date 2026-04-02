@@ -12,6 +12,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { EmailVerifiedGuard } from '../common/guards/email-verified.guard';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -69,6 +70,7 @@ export class UsersController {
   }
 
   @Post('me/onboarding')
+  @UseGuards(EmailVerifiedGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async submitOnboarding(

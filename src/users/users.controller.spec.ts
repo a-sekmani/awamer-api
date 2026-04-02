@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Reflector } from '@nestjs/core';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 const mockUsersService = {
   getMe: jest.fn(),
@@ -11,13 +13,23 @@ const mockUsersService = {
   getOnboardingStatus: jest.fn(),
 };
 
+const mockPrismaService = {
+  user: {
+    findUnique: jest.fn().mockResolvedValue({ emailVerified: true }),
+  },
+};
+
 describe('UsersController', () => {
   let controller: UsersController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: mockUsersService }],
+      providers: [
+        { provide: UsersService, useValue: mockUsersService },
+        { provide: PrismaService, useValue: mockPrismaService },
+        Reflector,
+      ],
     }).compile();
 
     controller = module.get<UsersController>(UsersController);

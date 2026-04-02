@@ -30,4 +30,40 @@ export class MailService {
       );
     }
   }
+
+  async sendVerificationEmail(
+    email: string,
+    code: string,
+    name: string,
+  ): Promise<void> {
+    try {
+      // TODO: Replace with AWS SES integration
+      // Bilingual email: Arabic (top, RTL) + English (bottom, LTR)
+      const htmlBody = `
+        <div dir="rtl" style="text-align: right; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+          <h2>مرحباً ${name}،</h2>
+          <p>رمز التحقق من بريدك الإلكتروني هو:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 16px; background: #f4f4f4; display: inline-block; border-radius: 8px;">${code}</div>
+          <p>هذا الرمز صالح لمدة 10 دقائق.</p>
+        </div>
+        <hr style="margin: 24px 0;" />
+        <div dir="ltr" style="text-align: left; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+          <h2>Hello ${name},</h2>
+          <p>Your email verification code is:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 16px; background: #f4f4f4; display: inline-block; border-radius: 8px;">${code}</div>
+          <p>This code is valid for 10 minutes.</p>
+        </div>
+      `;
+
+      this.logger.log(
+        `Verification email for ${name} (${email}): code=${code}`,
+      );
+      this.logger.debug(`Email HTML body: ${htmlBody}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to send verification email to ${email}: ${message}`,
+      );
+    }
+  }
 }
