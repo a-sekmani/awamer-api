@@ -23,7 +23,11 @@
       "Bash(npm view:*)",
       "mcp__claude_ai_Postman__getCollection",
       "Bash(python3 -c ':*)",
-      "mcp__claude_ai_Postman__createCollectionRequest"
+      "mcp__claude_ai_Postman__createCollectionRequest",
+      "Bash(node:*)",
+      "Bash(git reset:*)",
+      "Bash(git push:*)",
+      "Bash(git:*)"
     ]
   }
 }

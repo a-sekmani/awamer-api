@@ -32,6 +32,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
           errorCode = resp.errorCode as string;
         }
 
+        if (resp.retryAfter != null) {
+          response.setHeader('Retry-After', String(resp.retryAfter));
+        }
+
         if (Array.isArray(resp.message)) {
           errors = resp.message;
           message = 'Validation failed';

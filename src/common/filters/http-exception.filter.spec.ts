@@ -22,6 +22,7 @@ function createMockResponse() {
   const res = {
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
+    setHeader: jest.fn().mockReturnThis(),
   };
   return res;
 }
@@ -282,6 +283,41 @@ describe('HttpExceptionFilter', () => {
           errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
         }),
       );
+    });
+
+    it('should set Retry-After header when retryAfter is present', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new HttpException(
+        {
+          message: 'Too many requests. Please try again later.',
+          errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
+          retryAfter: 45,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+
+      filter.catch(exception, host);
+
+      expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '45');
+      expect(res.status).toHaveBeenCalledWith(429);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 429,
+          errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
+          message: 'Too many requests. Please try again later.',
+        }),
+      );
+    });
+
+    it('should not set Retry-After header when retryAfter is absent', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new BadRequestException('Bad input');
+
+      filter.catch(exception, host);
+
+      expect(res.setHeader).not.toHaveBeenCalled();
     });
   });
 });

@@ -224,13 +224,14 @@ describe('AuthController', () => {
   // POST /auth/send-verification (3 tests)
   // ===========================================================================
   describe('POST /auth/send-verification', () => {
-    it('should call authService.sendVerificationCode with userId', async () => {
-      const mockReq = { user: { userId: 'user-uuid' } } as any;
+    it('should call authService.sendVerificationCode with userId and ip', async () => {
+      const mockReq = { user: { userId: 'user-uuid' }, ip: '127.0.0.1' } as any;
 
       await controller.sendVerification(mockReq);
 
       expect(mockAuthService.sendVerificationCode).toHaveBeenCalledWith(
         'user-uuid',
+        '127.0.0.1',
       );
     });
 
@@ -328,13 +329,14 @@ describe('AuthController', () => {
   // POST /auth/resend-verification (3 tests)
   // ===========================================================================
   describe('POST /auth/resend-verification', () => {
-    it('should call authService.sendVerificationCode with userId', async () => {
-      const mockReq = { user: { userId: 'user-uuid' } } as any;
+    it('should call authService.sendVerificationCode with userId and ip', async () => {
+      const mockReq = { user: { userId: 'user-uuid' }, ip: '127.0.0.1' } as any;
 
       await controller.resendVerification(mockReq);
 
       expect(mockAuthService.sendVerificationCode).toHaveBeenCalledWith(
         'user-uuid',
+        '127.0.0.1',
       );
     });
 

@@ -22,13 +22,14 @@ import {
   ResetPasswordDto,
 } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { User } from '@prisma/client';
+import { User, RateLimitType } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 12;
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_COOLDOWN_MS = 60 * 1000; // 60 seconds per email
+const RATE_LIMIT_HOURLY_MAX = 5; // 5 per hour per email
+const RATE_LIMIT_DAILY_MAX_PER_IP = 10; // 10 per 24 hours per IP
 const VERIFICATION_CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
-const VERIFICATION_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const VERIFICATION_RATE_LIMIT_MAX = 3;
 const VERIFICATION_MAX_ATTEMPTS = 5;
 
 const REFRESH_TOKEN_EXPIRY_DEFAULT = '7d';
@@ -231,14 +232,20 @@ export class AuthService {
   }
 
   async logout(userId: string) {
-    await this.prisma.user.update({
+    await this.prisma.user.updateMany({
       where: { id: userId },
       data: { refreshToken: null },
     });
   }
 
-  async forgotPassword(dto: ForgotPasswordDto) {
+  async forgotPassword(dto: ForgotPasswordDto, ip: string) {
     const email = dto.email.trim().toLowerCase();
+
+    await this.checkRateLimit(email, ip, RateLimitType.FORGOT_PASSWORD);
+
+    await this.prisma.rateLimitedRequest.create({
+      data: { email, ip, type: RateLimitType.FORGOT_PASSWORD },
+    });
 
     try {
       const user = await this.prisma.user.findUnique({
@@ -270,6 +277,99 @@ export class AuthService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Forgot password error: ${message}`);
+    }
+  }
+
+  private async checkRateLimit(
+    email: string,
+    ip: string,
+    type: RateLimitType,
+  ): Promise<void> {
+    const now = new Date();
+
+    // 1. Per-email cooldown: 1 request every 60 seconds
+    const cooldownStart = new Date(now.getTime() - RATE_LIMIT_COOLDOWN_MS);
+    const recentRequest =
+      await this.prisma.rateLimitedRequest.findFirst({
+        where: { type, email, createdAt: { gte: cooldownStart } },
+        orderBy: { createdAt: 'desc' },
+      });
+
+    if (recentRequest) {
+      const retryAfter = Math.ceil(
+        (recentRequest.createdAt.getTime() +
+          RATE_LIMIT_COOLDOWN_MS -
+          now.getTime()) /
+          1000,
+      );
+      throw new HttpException(
+        {
+          message: 'Too many requests. Please try again later.',
+          errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
+          retryAfter: Math.max(retryAfter, 1),
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // 2. Per-email hourly limit: 5 requests per hour
+    const hourStart = new Date(now.getTime() - 60 * 60 * 1000);
+    const hourlyCount = await this.prisma.rateLimitedRequest.count({
+      where: { type, email, createdAt: { gte: hourStart } },
+    });
+
+    if (hourlyCount >= RATE_LIMIT_HOURLY_MAX) {
+      const oldestInWindow =
+        await this.prisma.rateLimitedRequest.findFirst({
+          where: { type, email, createdAt: { gte: hourStart } },
+          orderBy: { createdAt: 'asc' },
+        });
+      const retryAfter = oldestInWindow
+        ? Math.ceil(
+            (oldestInWindow.createdAt.getTime() +
+              60 * 60 * 1000 -
+              now.getTime()) /
+              1000,
+          )
+        : 3600;
+      throw new HttpException(
+        {
+          message: 'Too many requests. Please try again later.',
+          errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
+          retryAfter: Math.max(retryAfter, 1),
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // 3. Per-IP daily limit: 10 requests per 24 hours
+    const dayStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const dailyCount = await this.prisma.rateLimitedRequest.count({
+      where: { type, ip, createdAt: { gte: dayStart } },
+    });
+
+    if (dailyCount >= RATE_LIMIT_DAILY_MAX_PER_IP) {
+      const oldestInWindow =
+        await this.prisma.rateLimitedRequest.findFirst({
+          where: { type, ip, createdAt: { gte: dayStart } },
+          orderBy: { createdAt: 'asc' },
+        });
+      const retryAfter = oldestInWindow
+        ? Math.ceil(
+            (oldestInWindow.createdAt.getTime() +
+              24 * 60 * 60 * 1000 -
+              now.getTime()) /
+              1000,
+          )
+        : 86400;
+      throw new HttpException(
+        {
+          message: 'Too many requests. Please try again later.',
+          errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
+          retryAfter: Math.max(retryAfter, 1),
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 
@@ -338,7 +438,7 @@ export class AuthService {
     ]);
   }
 
-  async sendVerificationCode(userId: string) {
+  async sendVerificationCode(userId: string, ip?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -349,23 +449,20 @@ export class AuthService {
       throw new BadRequestException('Email already verified');
     }
 
-    const windowStart = new Date(
-      Date.now() - VERIFICATION_RATE_LIMIT_WINDOW_MS,
-    );
-    const recentCount = await this.prisma.emailVerification.count({
-      where: {
-        userId,
-        createdAt: { gte: windowStart },
-      },
-    });
-    if (recentCount >= VERIFICATION_RATE_LIMIT_MAX) {
-      throw new HttpException(
-        {
-          message: 'Too many verification requests. Please try again later',
-          errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
+    if (ip) {
+      await this.checkRateLimit(
+        user.email,
+        ip,
+        RateLimitType.VERIFICATION_RESEND,
       );
+
+      await this.prisma.rateLimitedRequest.create({
+        data: {
+          email: user.email,
+          ip,
+          type: RateLimitType.VERIFICATION_RESEND,
+        },
+      });
     }
 
     const code = String(crypto.randomInt(100000, 999999));

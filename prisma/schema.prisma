@@ -140,6 +140,13 @@ enum PaymentStatus {
   @@map("payment_status")
 }
 
+enum RateLimitType {
+  FORGOT_PASSWORD      @map("forgot_password")
+  VERIFICATION_RESEND  @map("verification_resend")
+
+  @@map("rate_limit_type")
+}
+
 // ============================================================================
 // USER DOMAIN (4 models)
 // ============================================================================
@@ -178,6 +185,18 @@ model User {
 
   @@index([email])
   @@map("users")
+}
+
+model RateLimitedRequest {
+  id        String        @id @default(uuid())
+  email     String
+  ip        String
+  type      RateLimitType
+  createdAt DateTime      @default(now())
+
+  @@index([type, email, createdAt])
+  @@index([type, ip, createdAt])
+  @@map("rate_limited_requests")
 }
 
 model EmailVerification {

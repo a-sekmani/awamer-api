@@ -62,6 +62,7 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn().mockResolvedValue(mockUser),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     create: jest.fn().mockResolvedValue(mockUser),
   },
   userProfile: { create: jest.fn() },
@@ -78,6 +79,11 @@ const mockPrismaService = {
     create: jest.fn().mockResolvedValue({}),
     findFirst: jest.fn(),
     update: jest.fn().mockResolvedValue({}),
+  },
+  rateLimitedRequest: {
+    create: jest.fn().mockResolvedValue({}),
+    findFirst: jest.fn().mockResolvedValue(null),
+    count: jest.fn().mockResolvedValue(0),
   },
   $transaction: jest.fn().mockImplementation((cbOrArray) => {
     if (typeof cbOrArray === 'function') return cbOrArray(mockTx);
@@ -400,7 +406,7 @@ describe('AuthService', () => {
     it('should set refreshToken to null in DB', async () => {
       await service.logout('user-uuid');
 
-      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+      expect(mockPrismaService.user.updateMany).toHaveBeenCalledWith({
         where: { id: 'user-uuid' },
         data: { refreshToken: null },
       });
@@ -409,8 +415,8 @@ describe('AuthService', () => {
     it('should require userId parameter', async () => {
       await service.logout('user-uuid');
 
-      expect(mockPrismaService.user.update).toHaveBeenCalledTimes(1);
-      expect(mockPrismaService.user.update).toHaveBeenCalledWith(
+      expect(mockPrismaService.user.updateMany).toHaveBeenCalledTimes(1);
+      expect(mockPrismaService.user.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'user-uuid' },
         }),
@@ -418,15 +424,16 @@ describe('AuthService', () => {
     });
 
     it('should confirm refreshToken is null after logout', async () => {
-      mockPrismaService.user.update.mockResolvedValue({
-        ...mockUser,
-        refreshToken: null,
-      });
-
       await service.logout('user-uuid');
 
-      const updateCall = mockPrismaService.user.update.mock.calls[0][0];
+      const updateCall = mockPrismaService.user.updateMany.mock.calls[0][0];
       expect(updateCall.data.refreshToken).toBeNull();
+    });
+
+    it('should not throw when user does not exist', async () => {
+      mockPrismaService.user.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.logout('non-existent-uuid')).resolves.not.toThrow();
     });
   });
 
@@ -434,11 +441,18 @@ describe('AuthService', () => {
   // forgotPassword (3 tests)
   // =========================================================================
   describe('forgotPassword', () => {
+    const testIp = '127.0.0.1';
+
+    beforeEach(() => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValue(null);
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValue(0);
+    });
+
     it('should return without error for non-existent email', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.forgotPassword({ email: 'nonexistent@test.com' }),
+        service.forgotPassword({ email: 'nonexistent@test.com' }, testIp),
       ).resolves.toBeUndefined();
 
       expect(mockMailService.sendPasswordResetEmail).not.toHaveBeenCalled();
@@ -447,7 +461,7 @@ describe('AuthService', () => {
     it('should store passwordResetToken and passwordResetExpires', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      await service.forgotPassword({ email: 'test@example.com' });
+      await service.forgotPassword({ email: 'test@example.com' }, testIp);
 
       expect(mockPrismaService.user.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -468,7 +482,7 @@ describe('AuthService', () => {
     it('should call MailService.sendPasswordResetEmail', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      await service.forgotPassword({ email: 'test@example.com' });
+      await service.forgotPassword({ email: 'test@example.com' }, testIp);
 
       expect(mockMailService.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
       expect(mockMailService.sendPasswordResetEmail).toHaveBeenCalledWith(
@@ -476,6 +490,131 @@ describe('AuthService', () => {
         expect.any(String),
         mockUser.name,
       );
+    });
+
+    it('should log the request in rateLimitedRequest table', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+
+      await service.forgotPassword({ email: 'test@example.com' }, testIp);
+
+      expect(
+        mockPrismaService.rateLimitedRequest.create,
+      ).toHaveBeenCalledWith({
+        data: {
+          email: 'test@example.com',
+          ip: testIp,
+          type: 'FORGOT_PASSWORD',
+        },
+      });
+    });
+  });
+
+  // =========================================================================
+  // forgotPassword — rate limiting (5 tests)
+  // =========================================================================
+  describe('forgotPassword — rate limiting', () => {
+    const testIp = '127.0.0.1';
+
+    beforeEach(() => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValue(null);
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValue(0);
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+    });
+
+    it('should succeed on first request', async () => {
+      await expect(
+        service.forgotPassword({ email: 'test@example.com' }, testIp),
+      ).resolves.not.toThrow();
+    });
+
+    it('should reject second request within 60 seconds (per-email cooldown)', async () => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValue({
+        id: 'req-1',
+        email: 'test@example.com',
+        ip: testIp,
+        createdAt: new Date(Date.now() - 15 * 1000), // 15 seconds ago
+      });
+
+      try {
+        await service.forgotPassword({ email: 'test@example.com' }, testIp);
+        fail('Expected HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(429);
+        const response = httpError.getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe('RATE_LIMIT_EXCEEDED');
+        expect(response.retryAfter).toBeGreaterThan(0);
+        expect(response.retryAfter).toBeLessThanOrEqual(60);
+      }
+    });
+
+    it('should reject when 5 requests per hour per email exceeded', async () => {
+      // No recent request in last 60s
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      // But 5 requests in last hour
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValueOnce(5);
+      // Oldest request in window
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce({
+        id: 'req-old',
+        email: 'test@example.com',
+        ip: testIp,
+        createdAt: new Date(Date.now() - 50 * 60 * 1000), // 50 minutes ago
+      });
+
+      try {
+        await service.forgotPassword({ email: 'test@example.com' }, testIp);
+        fail('Expected HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(429);
+        const response = httpError.getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe('RATE_LIMIT_EXCEEDED');
+        expect(response.retryAfter).toBeGreaterThan(0);
+      }
+    });
+
+    it('should reject when 10 requests per 24 hours per IP exceeded', async () => {
+      // No per-email cooldown hit
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      // Hourly per-email count is fine
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValueOnce(2);
+      // But daily per-IP count is 10
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValueOnce(10);
+      // Oldest request in IP window
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce({
+        id: 'req-ip-old',
+        email: 'other@example.com',
+        ip: testIp,
+        createdAt: new Date(Date.now() - 20 * 60 * 60 * 1000), // 20 hours ago
+      });
+
+      try {
+        await service.forgotPassword({ email: 'test@example.com' }, testIp);
+        fail('Expected HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(429);
+        const response = httpError.getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe('RATE_LIMIT_EXCEEDED');
+        expect(response.retryAfter).toBeGreaterThan(0);
+      }
+    });
+
+    it('should succeed after cooldown period expires', async () => {
+      // No recent request found (cooldown expired)
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValue(null);
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValue(0);
+
+      await expect(
+        service.forgotPassword({ email: 'test@example.com' }, testIp),
+      ).resolves.not.toThrow();
     });
   });
 
@@ -711,17 +850,24 @@ describe('AuthService', () => {
       ).rejects.toThrow('Email already verified');
     });
 
-    it('should throw 429 with RATE_LIMIT_EXCEEDED if rate limit exceeded (3 in 15 min)', async () => {
+    it('should throw 429 with RATE_LIMIT_EXCEEDED if per-email cooldown hit', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaService.emailVerification.count.mockResolvedValue(3);
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce({
+        id: 'req-1',
+        email: mockUser.email,
+        ip: '127.0.0.1',
+        type: 'VERIFICATION_RESEND',
+        createdAt: new Date(Date.now() - 15 * 1000), // 15 seconds ago
+      });
 
       try {
-        await service.sendVerificationCode('user-uuid');
+        await service.sendVerificationCode('user-uuid', '127.0.0.1');
         fail('Expected HttpException');
       } catch (e) {
         expect((e as HttpException).getStatus()).toBe(429);
         const response = (e as HttpException).getResponse() as Record<string, unknown>;
         expect(response.errorCode).toBe(ErrorCode.RATE_LIMIT_EXCEEDED);
+        expect(response.retryAfter).toBeGreaterThan(0);
       }
     });
 
@@ -800,6 +946,135 @@ describe('AuthService', () => {
 
       // Transaction should still have been called (codes were created before mail)
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================================
+  // sendVerificationCode — rate limiting (5 tests)
+  // =========================================================================
+  describe('sendVerificationCode — rate limiting', () => {
+    const testIp = '127.0.0.1';
+
+    beforeEach(() => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValue(null);
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValue(0);
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+    });
+
+    it('should succeed on first request', async () => {
+      await expect(
+        service.sendVerificationCode('user-uuid', testIp),
+      ).resolves.not.toThrow();
+    });
+
+    it('should reject second request within 60 seconds (per-email cooldown)', async () => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce({
+        id: 'req-1',
+        email: mockUser.email,
+        ip: testIp,
+        type: 'VERIFICATION_RESEND',
+        createdAt: new Date(Date.now() - 15 * 1000), // 15 seconds ago
+      });
+
+      try {
+        await service.sendVerificationCode('user-uuid', testIp);
+        fail('Expected HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(429);
+        const response = httpError.getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe('RATE_LIMIT_EXCEEDED');
+        expect(response.retryAfter).toBeGreaterThan(0);
+        expect(response.retryAfter).toBeLessThanOrEqual(60);
+      }
+    });
+
+    it('should reject when 5 requests per hour per email exceeded', async () => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValueOnce(5);
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce({
+        id: 'req-old',
+        email: mockUser.email,
+        ip: testIp,
+        type: 'VERIFICATION_RESEND',
+        createdAt: new Date(Date.now() - 50 * 60 * 1000),
+      });
+
+      try {
+        await service.sendVerificationCode('user-uuid', testIp);
+        fail('Expected HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(429);
+        const response = httpError.getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe('RATE_LIMIT_EXCEEDED');
+        expect(response.retryAfter).toBeGreaterThan(0);
+      }
+    });
+
+    it('should reject when 10 requests per 24 hours per IP exceeded', async () => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValueOnce(2);
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValueOnce(10);
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValueOnce({
+        id: 'req-ip-old',
+        email: 'other@example.com',
+        ip: testIp,
+        type: 'VERIFICATION_RESEND',
+        createdAt: new Date(Date.now() - 20 * 60 * 60 * 1000),
+      });
+
+      try {
+        await service.sendVerificationCode('user-uuid', testIp);
+        fail('Expected HttpException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const httpError = error as HttpException;
+        expect(httpError.getStatus()).toBe(429);
+        const response = httpError.getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe('RATE_LIMIT_EXCEEDED');
+        expect(response.retryAfter).toBeGreaterThan(0);
+      }
+    });
+
+    it('should succeed after cooldown period expires', async () => {
+      mockPrismaService.rateLimitedRequest.findFirst.mockResolvedValue(null);
+      mockPrismaService.rateLimitedRequest.count.mockResolvedValue(0);
+
+      await expect(
+        service.sendVerificationCode('user-uuid', testIp),
+      ).resolves.not.toThrow();
+    });
+
+    it('should skip rate limit when ip is not provided (register flow)', async () => {
+      // No IP = called from register(), should not check rate limit
+      await expect(
+        service.sendVerificationCode('user-uuid'),
+      ).resolves.not.toThrow();
+
+      expect(
+        mockPrismaService.rateLimitedRequest.findFirst,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should log the request in rateLimitedRequest table', async () => {
+      await service.sendVerificationCode('user-uuid', testIp);
+
+      expect(
+        mockPrismaService.rateLimitedRequest.create,
+      ).toHaveBeenCalledWith({
+        data: {
+          email: mockUser.email,
+          ip: testIp,
+          type: 'VERIFICATION_RESEND',
+        },
+      });
     });
   });
 

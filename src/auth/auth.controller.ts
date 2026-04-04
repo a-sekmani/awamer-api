@@ -93,8 +93,9 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    await this.authService.forgotPassword(dto);
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+    await this.authService.forgotPassword(dto, ip);
     return {
       data: null,
       message:
@@ -125,7 +126,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async sendVerification(@Req() req: Request) {
     const { userId } = req.user as { userId: string };
-    await this.authService.sendVerificationCode(userId);
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+    await this.authService.sendVerificationCode(userId, ip);
     return { data: null, message: 'Verification code sent to your email' };
   }
 
@@ -143,7 +145,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async resendVerification(@Req() req: Request) {
     const { userId } = req.user as { userId: string };
-    await this.authService.sendVerificationCode(userId);
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+    await this.authService.sendVerificationCode(userId, ip);
     return { data: null, message: 'Verification code resent to your email' };
   }
 
