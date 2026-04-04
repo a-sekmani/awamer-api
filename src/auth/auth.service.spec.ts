@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
+import { ErrorCode } from '../common/error-codes.enum';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { validate } from 'class-validator';
@@ -152,15 +153,17 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBeDefined();
     });
 
-    it('should reject duplicate email with ConflictException', async () => {
+    it('should reject duplicate email with ConflictException and EMAIL_ALREADY_EXISTS', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      await expect(service.register(registerDto)).rejects.toThrow(
-        ConflictException,
-      );
-      await expect(service.register(registerDto)).rejects.toThrow(
-        'Email already registered',
-      );
+      try {
+        await service.register(registerDto);
+        fail('Expected ConflictException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+        const response = (error as ConflictException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.EMAIL_ALREADY_EXISTS);
+      }
     });
 
     it('should hash password with bcrypt 12 rounds', async () => {
@@ -247,30 +250,31 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBeDefined();
     });
 
-    it('should reject incorrect password with UnauthorizedException', async () => {
+    it('should reject incorrect password with INVALID_CREDENTIALS', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(false);
 
-      await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
-      bcrypt.compare.mockResolvedValue(false);
-      await expect(service.login(loginDto)).rejects.toThrow(
-        'Invalid credentials',
-      );
+      try {
+        await service.login(loginDto);
+        fail('Expected UnauthorizedException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_CREDENTIALS);
+      }
     });
 
-    it('should reject non-existent email with same error message', async () => {
+    it('should reject non-existent email with same INVALID_CREDENTIALS errorCode', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.login(loginDto)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
-      await expect(service.login(loginDto)).rejects.toThrow(
-        'Invalid credentials',
-      );
+      try {
+        await service.login(loginDto);
+        fail('Expected UnauthorizedException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_CREDENTIALS);
+      }
     });
 
     it('should update lastLoginAt', async () => {
@@ -327,30 +331,34 @@ describe('AuthService', () => {
       expect(result.refreshToken).toBeDefined();
     });
 
-    it('should reject invalid token with UnauthorizedException', async () => {
+    it('should reject invalid token with INVALID_SESSION', async () => {
       mockJwtService.verify.mockImplementation(() => {
         throw new Error('invalid token');
       });
 
-      await expect(service.refresh('invalid_token')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      try {
+        await service.refresh('invalid_token');
+        fail('Expected UnauthorizedException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_SESSION);
+      }
     });
 
-    it('should reject expired token', async () => {
+    it('should reject expired token with INVALID_SESSION', async () => {
       mockJwtService.verify.mockImplementation(() => {
         throw new Error('jwt expired');
       });
 
-      await expect(service.refresh('expired_token')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      mockJwtService.verify.mockImplementation(() => {
-        throw new Error('jwt expired');
-      });
-      await expect(service.refresh('expired_token')).rejects.toThrow(
-        'Invalid or expired refresh token',
-      );
+      try {
+        await service.refresh('expired_token');
+        fail('Expected UnauthorizedException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_SESSION);
+      }
     });
 
     it('should invalidate old token after rotation', async () => {
@@ -496,22 +504,20 @@ describe('AuthService', () => {
       );
     });
 
-    it('should reject expired token with BadRequestException', async () => {
+    it('should reject expired token with INVALID_RESET_TOKEN', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.resetPassword({
+      try {
+        await service.resetPassword({
           token: 'expired_token',
           password: 'NewPass123',
-        }),
-      ).rejects.toThrow(BadRequestException);
-      mockPrismaService.user.findFirst.mockResolvedValue(null);
-      await expect(
-        service.resetPassword({
-          token: 'expired_token',
-          password: 'NewPass123',
-        }),
-      ).rejects.toThrow('Invalid or expired reset token');
+        });
+        fail('Expected BadRequestException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
+      }
     });
 
     it('should reject previously used token (single-use)', async () => {
@@ -542,6 +548,90 @@ describe('AuthService', () => {
       expect(errors.length).toBeGreaterThan(0);
       const passwordError = errors.find((e) => e.property === 'password');
       expect(passwordError).toBeDefined();
+    });
+
+    it('should use a transaction for password update and token clearing', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
+
+      await service.resetPassword({
+        token: 'valid_token',
+        password: 'NewPass123',
+      });
+
+      // $transaction should be called with an array
+      const txCall = mockPrismaService.$transaction.mock.calls.find(
+        (call) => Array.isArray(call[0]),
+      );
+      expect(txCall).toBeDefined();
+    });
+  });
+
+  // =========================================================================
+  // verifyResetToken (5 tests)
+  // =========================================================================
+  describe('verifyResetToken', () => {
+    it('should return { valid: true } for a valid token', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
+
+      const result = await service.verifyResetToken('valid_token');
+
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('should throw INVALID_RESET_TOKEN for an invalid token', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.verifyResetToken('invalid_token');
+        fail('Expected BadRequestException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
+      }
+    });
+
+    it('should throw INVALID_RESET_TOKEN for an expired token', async () => {
+      // Prisma findFirst with passwordResetExpires > now returns null for expired
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+
+      try {
+        await service.verifyResetToken('expired_token');
+        fail('Expected BadRequestException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
+      }
+    });
+
+    it('should throw INVALID_RESET_TOKEN when token is empty', async () => {
+      try {
+        await service.verifyResetToken('');
+        fail('Expected BadRequestException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
+      }
+    });
+
+    it('should return 400 after token has been used by resetPassword (single-use)', async () => {
+      // First: resetPassword succeeds and clears the token
+      mockPrismaService.user.findFirst.mockResolvedValueOnce(mockUser);
+      await service.resetPassword({ token: 'one_time_token', password: 'NewPass123' });
+
+      // Second: verifyResetToken fails because token was cleared
+      mockPrismaService.user.findFirst.mockResolvedValueOnce(null);
+
+      try {
+        await service.verifyResetToken('one_time_token');
+        fail('Expected BadRequestException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
+      }
     });
   });
 
@@ -621,24 +711,17 @@ describe('AuthService', () => {
       ).rejects.toThrow('Email already verified');
     });
 
-    it('should throw 429 if rate limit exceeded (3 in 15 min)', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
-      mockPrismaService.emailVerification.count.mockResolvedValue(3);
-
-      await expect(
-        service.sendVerificationCode('user-uuid'),
-      ).rejects.toThrow(HttpException);
-
+    it('should throw 429 with RATE_LIMIT_EXCEEDED if rate limit exceeded (3 in 15 min)', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.emailVerification.count.mockResolvedValue(3);
 
       try {
         await service.sendVerificationCode('user-uuid');
+        fail('Expected HttpException');
       } catch (e) {
         expect((e as HttpException).getStatus()).toBe(429);
-        expect((e as HttpException).message).toBe(
-          'Too many verification requests. Please try again later',
-        );
+        const response = (e as HttpException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.RATE_LIMIT_EXCEEDED);
       }
     });
 
@@ -1043,6 +1126,109 @@ describe('AuthService', () => {
 
       expect(result.user).toHaveProperty('emailVerified');
       expect(result.user).toHaveProperty('requiresVerification');
+    });
+  });
+
+  // =========================================================================
+  // rememberMe (5 tests)
+  // =========================================================================
+  describe('rememberMe', () => {
+    it('should use 30d refresh token expiry when login with rememberMe=true', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(true);
+
+      await service.login({ email: 'test@example.com', password: 'Test1234', rememberMe: true });
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ expiresIn: '30d' }),
+      );
+    });
+
+    it('should use 7d refresh token expiry when login with rememberMe=false', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(true);
+
+      await service.login({ email: 'test@example.com', password: 'Test1234', rememberMe: false });
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ expiresIn: '7d' }),
+      );
+    });
+
+    it('should default to 7d refresh token expiry when login without rememberMe', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(true);
+
+      await service.login({ email: 'test@example.com', password: 'Test1234' });
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ expiresIn: '7d' }),
+      );
+    });
+
+    it('should use 30d refresh token expiry when register with rememberMe=true', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+
+      await service.register({
+        name: 'Test',
+        email: 'new@example.com',
+        password: 'Test1234',
+        rememberMe: true,
+      });
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ expiresIn: '30d' }),
+      );
+    });
+
+    it('should maintain 30d expiry on refresh after rememberMe=true login', async () => {
+      // Simulate a token that was issued with 30d expiry
+      const now = Math.floor(Date.now() / 1000);
+      mockJwtService.verify.mockReturnValue({
+        sub: 'user-uuid',
+        email: 'test@example.com',
+        iat: now,
+        exp: now + 30 * 24 * 60 * 60, // 30 days
+      });
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(true);
+
+      await service.refresh('valid_refresh_token');
+
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ expiresIn: '30d' }),
+      );
+    });
+
+    it('should return 30d cookieMaxAge when login with rememberMe=true', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(true);
+
+      const result = await service.login({
+        email: 'test@example.com',
+        password: 'Test1234',
+        rememberMe: true,
+      });
+
+      expect(result.cookieMaxAge).toBe(30 * 24 * 60 * 60 * 1000);
+    });
+
+    it('should return 7d cookieMaxAge when login with rememberMe=false', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(true);
+
+      const result = await service.login({
+        email: 'test@example.com',
+        password: 'Test1234',
+        rememberMe: false,
+      });
+
+      expect(result.cookieMaxAge).toBe(7 * 24 * 60 * 60 * 1000);
     });
   });
 });

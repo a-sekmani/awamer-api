@@ -16,7 +16,14 @@
       "mcp__claude_ai_Postman__getWorkspaces",
       "mcp__claude_ai_Postman__getCollections",
       "mcp__claude_ai_Postman__updateCollectionRequest",
-      "Bash(.specify/scripts/bash/create-new-feature.sh I want to add Email Verification as a mandatory step after registration and before onboarding.\n\nUpdated Flow:\nRegister → Automatic OTP Sending → Email Verification \\(6 digits\\) → Onboarding → Dashboard:*)"
+      "Bash(.specify/scripts/bash/create-new-feature.sh I want to add Email Verification as a mandatory step after registration and before onboarding.\n\nUpdated Flow:\nRegister → Automatic OTP Sending → Email Verification \\(6 digits\\) → Onboarding → Dashboard:*)",
+      "Bash(npm test:*)",
+      "Bash(npm outdated:*)",
+      "WebFetch(domain:www.prisma.io)",
+      "Bash(npm view:*)",
+      "mcp__claude_ai_Postman__getCollection",
+      "Bash(python3 -c ':*)",
+      "mcp__claude_ai_Postman__createCollectionRequest"
     ]
   }
 }

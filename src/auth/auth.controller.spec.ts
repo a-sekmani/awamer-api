@@ -11,24 +11,31 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 
+const COOKIE_MAX_AGE_DEFAULT = 7 * 24 * 60 * 60 * 1000;
+const COOKIE_MAX_AGE_REMEMBER = 30 * 24 * 60 * 60 * 1000;
+
 const mockAuthService = {
   register: jest.fn().mockResolvedValue({
     user: { id: 'uuid', name: 'Test', email: 'test@example.com' },
     accessToken: 'at',
     refreshToken: 'rt',
+    cookieMaxAge: COOKIE_MAX_AGE_DEFAULT,
   }),
   login: jest.fn().mockResolvedValue({
     user: { id: 'uuid', name: 'Test', email: 'test@example.com' },
     accessToken: 'at',
     refreshToken: 'rt',
+    cookieMaxAge: COOKIE_MAX_AGE_DEFAULT,
   }),
   logout: jest.fn().mockResolvedValue(undefined),
   refresh: jest.fn().mockResolvedValue({
     user: { id: 'uuid', name: 'Test', email: 'test@example.com' },
     accessToken: 'at',
     refreshToken: 'rt',
+    cookieMaxAge: COOKIE_MAX_AGE_DEFAULT,
   }),
   forgotPassword: jest.fn().mockResolvedValue(undefined),
+  verifyResetToken: jest.fn().mockResolvedValue({ valid: true }),
   resetPassword: jest.fn().mockResolvedValue(undefined),
   sendVerificationCode: jest.fn().mockResolvedValue(undefined),
   verifyEmail: jest.fn().mockResolvedValue({ emailVerified: true }),
@@ -134,6 +141,43 @@ describe('AuthController', () => {
     );
   });
 
+  it('should set 30-day refresh cookie maxAge when rememberMe=true', async () => {
+    mockAuthService.login.mockResolvedValueOnce({
+      user: { id: 'uuid', name: 'Test', email: 'test@example.com' },
+      accessToken: 'at',
+      refreshToken: 'rt',
+      cookieMaxAge: COOKIE_MAX_AGE_REMEMBER,
+    });
+
+    const mockRes = { cookie: jest.fn() } as any;
+
+    await controller.login(
+      { email: 'test@example.com', password: 'Test1234', rememberMe: true },
+      mockRes,
+    );
+
+    expect(mockRes.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'rt',
+      expect.objectContaining({ maxAge: COOKIE_MAX_AGE_REMEMBER }),
+    );
+  });
+
+  it('should set 7-day refresh cookie maxAge when rememberMe=false', async () => {
+    const mockRes = { cookie: jest.fn() } as any;
+
+    await controller.login(
+      { email: 'test@example.com', password: 'Test1234', rememberMe: false },
+      mockRes,
+    );
+
+    expect(mockRes.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'rt',
+      expect.objectContaining({ maxAge: COOKIE_MAX_AGE_DEFAULT }),
+    );
+  });
+
   it('should clear cookies on logout', async () => {
     const mockReq = {
       user: { userId: 'user-uuid' },
@@ -150,6 +194,29 @@ describe('AuthController', () => {
     });
     expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token', {
       path: '/api/v1/auth',
+    });
+  });
+
+  // ===========================================================================
+  // GET /auth/verify-reset-token (2 tests)
+  // ===========================================================================
+  describe('GET /auth/verify-reset-token', () => {
+    it('should return { valid: true } for a valid token', async () => {
+      const result = await controller.verifyResetToken('valid_token');
+
+      expect(mockAuthService.verifyResetToken).toHaveBeenCalledWith('valid_token');
+      expect(result).toEqual({
+        data: { valid: true },
+        message: 'Token is valid',
+      });
+    });
+
+    it('should propagate BadRequestException from service', async () => {
+      mockAuthService.verifyResetToken.mockRejectedValueOnce(
+        new BadRequestException({ message: 'Invalid or expired reset token', errorCode: 'INVALID_RESET_TOKEN' }),
+      );
+
+      await expect(controller.verifyResetToken('bad_token')).rejects.toThrow(BadRequestException);
     });
   });
 

@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { ErrorCode } from '../common/error-codes.enum';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed_value'),
@@ -340,18 +341,18 @@ describe('UsersService', () => {
       });
     });
 
-    it('should throw BadRequestException when current password is incorrect', async () => {
+    it('should throw BadRequestException with WRONG_CURRENT_PASSWORD when current password is incorrect', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(false);
 
-      await expect(
-        service.changePassword('user-uuid', dto),
-      ).rejects.toThrow(BadRequestException);
-      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
-      bcrypt.compare.mockResolvedValue(false);
-      await expect(
-        service.changePassword('user-uuid', dto),
-      ).rejects.toThrow('Current password is incorrect');
+      try {
+        await service.changePassword('user-uuid', dto);
+        fail('Expected BadRequestException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.WRONG_CURRENT_PASSWORD);
+      }
     });
 
     it('should call bcrypt.hash with 12 rounds', async () => {

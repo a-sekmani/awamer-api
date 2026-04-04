@@ -14,6 +14,7 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { ErrorCode } from '../common/error-codes.enum';
 import {
   RegisterDto,
   LoginDto,
@@ -29,6 +30,11 @@ const VERIFICATION_CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const VERIFICATION_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const VERIFICATION_RATE_LIMIT_MAX = 3;
 const VERIFICATION_MAX_ATTEMPTS = 5;
+
+const REFRESH_TOKEN_EXPIRY_DEFAULT = '7d';
+const REFRESH_TOKEN_EXPIRY_REMEMBER = '30d';
+const COOKIE_MAX_AGE_DEFAULT = 7 * 24 * 60 * 60 * 1000;
+const COOKIE_MAX_AGE_REMEMBER = 30 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -48,7 +54,10 @@ export class AuthService {
       where: { email },
     });
     if (existing) {
-      throw new ConflictException('Email already registered');
+      throw new ConflictException({
+        message: 'Email already registered',
+        errorCode: ErrorCode.EMAIL_ALREADY_EXISTS,
+      });
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -94,7 +103,8 @@ export class AuthService {
       return newUser;
     });
 
-    const { accessToken, refreshToken } = await this.generateTokens(user);
+    const rememberMe = dto.rememberMe ?? false;
+    const { accessToken, refreshToken } = await this.generateTokens(user, rememberMe);
 
     try {
       await this.sendVerificationCode(user.id);
@@ -109,6 +119,7 @@ export class AuthService {
       user: this.sanitizeUser(user),
       accessToken,
       refreshToken,
+      cookieMaxAge: rememberMe ? COOKIE_MAX_AGE_REMEMBER : COOKIE_MAX_AGE_DEFAULT,
     };
   }
 
@@ -119,19 +130,29 @@ export class AuthService {
       where: { email },
     });
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({
+        message: 'Invalid credentials',
+        errorCode: ErrorCode.INVALID_CREDENTIALS,
+      });
     }
 
     if (user.status !== 'ACTIVE') {
-      throw new ForbiddenException('Account is inactive or suspended');
+      throw new UnauthorizedException({
+        message: 'Invalid credentials',
+        errorCode: ErrorCode.INVALID_CREDENTIALS,
+      });
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException({
+        message: 'Invalid credentials',
+        errorCode: ErrorCode.INVALID_CREDENTIALS,
+      });
     }
 
-    const { accessToken, refreshToken } = await this.generateTokens(user);
+    const rememberMe = dto.rememberMe ?? false;
+    const { accessToken, refreshToken } = await this.generateTokens(user, rememberMe);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -142,12 +163,16 @@ export class AuthService {
       user: this.sanitizeUser(user),
       accessToken,
       refreshToken,
+      cookieMaxAge: rememberMe ? COOKIE_MAX_AGE_REMEMBER : COOKIE_MAX_AGE_DEFAULT,
     };
   }
 
   async refresh(refreshTokenFromCookie: string) {
     if (!refreshTokenFromCookie) {
-      throw new UnauthorizedException('Refresh token is required');
+      throw new UnauthorizedException({
+        message: 'Invalid session',
+        errorCode: ErrorCode.INVALID_SESSION,
+      });
     }
 
     let payload: JwtPayload;
@@ -156,18 +181,27 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException({
+        message: 'Invalid session',
+        errorCode: ErrorCode.INVALID_SESSION,
+      });
     }
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
     if (!user || !user.refreshToken) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException({
+        message: 'Invalid session',
+        errorCode: ErrorCode.INVALID_SESSION,
+      });
     }
 
     if (user.status !== 'ACTIVE') {
-      throw new ForbiddenException('Account is inactive or suspended');
+      throw new UnauthorizedException({
+        message: 'Invalid session',
+        errorCode: ErrorCode.INVALID_SESSION,
+      });
     }
 
     const tokenValid = await bcrypt.compare(
@@ -175,15 +209,24 @@ export class AuthService {
       user.refreshToken,
     );
     if (!tokenValid) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException({
+        message: 'Invalid session',
+        errorCode: ErrorCode.INVALID_SESSION,
+      });
     }
 
-    const { accessToken, refreshToken } = await this.generateTokens(user);
+    // Maintain the original remember-me preference from the token's TTL
+    const wasRememberMe = payload.exp && payload.iat
+      ? (payload.exp - payload.iat) > 8 * 24 * 60 * 60 // > 8 days means it was 30d
+      : false;
+
+    const { accessToken, refreshToken } = await this.generateTokens(user, wasRememberMe);
 
     return {
       user: this.sanitizeUser(user),
       accessToken,
       refreshToken,
+      cookieMaxAge: wasRememberMe ? COOKIE_MAX_AGE_REMEMBER : COOKIE_MAX_AGE_DEFAULT,
     };
   }
 
@@ -230,6 +273,36 @@ export class AuthService {
     }
   }
 
+  async verifyResetToken(token: string) {
+    if (!token) {
+      throw new BadRequestException({
+        message: 'Invalid or expired reset token',
+        errorCode: ErrorCode.INVALID_RESET_TOKEN,
+      });
+    }
+
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException({
+        message: 'Invalid or expired reset token',
+        errorCode: ErrorCode.INVALID_RESET_TOKEN,
+      });
+    }
+
+    return { valid: true };
+  }
+
   async resetPassword(dto: ResetPasswordDto) {
     const hashedToken = crypto
       .createHash('sha256')
@@ -244,20 +317,25 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException({
+        message: 'Invalid or expired reset token',
+        errorCode: ErrorCode.INVALID_RESET_TOKEN,
+      });
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash,
-        passwordResetToken: null,
-        passwordResetExpires: null,
-        refreshToken: null,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          passwordResetToken: null,
+          passwordResetExpires: null,
+          refreshToken: null,
+        },
+      }),
+    ]);
   }
 
   async sendVerificationCode(userId: string) {
@@ -282,7 +360,10 @@ export class AuthService {
     });
     if (recentCount >= VERIFICATION_RATE_LIMIT_MAX) {
       throw new HttpException(
-        'Too many verification requests. Please try again later',
+        {
+          message: 'Too many verification requests. Please try again later',
+          errorCode: ErrorCode.RATE_LIMIT_EXCEEDED,
+        },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -390,14 +471,14 @@ export class AuthService {
     return verification.code;
   }
 
-  private async generateTokens(user: User) {
+  private async generateTokens(user: User, rememberMe = false) {
     const payload: JwtPayload = { sub: user.id, email: user.email };
 
     const accessToken = this.jwtService.sign(payload);
 
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: '7d',
+      expiresIn: rememberMe ? REFRESH_TOKEN_EXPIRY_REMEMBER : REFRESH_TOKEN_EXPIRY_DEFAULT,
     });
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);

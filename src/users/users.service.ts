@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { ErrorCode } from '../common/error-codes.enum';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -79,7 +80,10 @@ export class UsersService {
       user.passwordHash,
     );
     if (!isValid) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException({
+        message: 'Current password is incorrect',
+        errorCode: ErrorCode.WRONG_CURRENT_PASSWORD,
+      });
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);

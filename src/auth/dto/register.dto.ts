@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsNotEmpty,
   IsOptional,
@@ -30,4 +31,8 @@ export class RegisterDto {
   @IsOptional()
   @MaxLength(100)
   country?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  rememberMe?: boolean;
 }
