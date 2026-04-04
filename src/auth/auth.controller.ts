@@ -8,6 +8,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
@@ -45,7 +46,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.register(dto);
-    this.setCookies(res, result.accessToken, result.refreshToken);
+    this.setCookies(res, result.accessToken, result.refreshToken, result.cookieMaxAge);
     return { data: { user: result.user }, message: 'Registration successful' };
   }
 
@@ -58,7 +59,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
-    this.setCookies(res, result.accessToken, result.refreshToken);
+    this.setCookies(res, result.accessToken, result.refreshToken, result.cookieMaxAge);
     return {
       data: { user: result.user, accessToken: result.accessToken },
       message: 'Login successful',
@@ -84,7 +85,7 @@ export class AuthController {
   ) {
     const refreshToken = req.cookies?.refresh_token;
     const result = await this.authService.refresh(refreshToken);
-    this.setCookies(res, result.accessToken, result.refreshToken);
+    this.setCookies(res, result.accessToken, result.refreshToken, result.cookieMaxAge);
     return { data: { user: result.user }, message: 'Token refreshed' };
   }
 
@@ -99,6 +100,15 @@ export class AuthController {
       message:
         'If an account with that email exists, a password reset link has been sent',
     };
+  }
+
+  @Public()
+  @Get('verify-reset-token')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async verifyResetToken(@Query('token') token: string) {
+    const result = await this.authService.verifyResetToken(token);
+    return { data: result, message: 'Token is valid' };
   }
 
   @Public()
@@ -153,7 +163,7 @@ export class AuthController {
     }
   }
 
-  private setCookies(res: Response, accessToken: string, refreshToken: string) {
+  private setCookies(res: Response, accessToken: string, refreshToken: string, refreshMaxAge: number) {
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: this.isProduction,
@@ -166,7 +176,7 @@ export class AuthController {
       httpOnly: true,
       secure: this.isProduction,
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: refreshMaxAge,
       path: '/api/v1/auth',
     });
   }

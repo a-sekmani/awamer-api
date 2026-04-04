@@ -36,6 +36,16 @@ export class MailService {
     code: string,
     name: string,
   ): Promise<void> {
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+
+    if (!isProduction) {
+      console.log(`\n========================================`);
+      console.log(`Verification code for ${email}: ${code}`);
+      console.log(`========================================\n`);
+      return;
+    }
+
     try {
       // TODO: Replace with AWS SES integration
       // Bilingual email: Arabic (top, RTL) + English (bottom, LTR)

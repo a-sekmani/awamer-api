@@ -3,11 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { MailService } from './mail.service';
 
 const mockConfigService = {
-  get: jest.fn().mockReturnValue('http://localhost:3000'),
+  get: jest.fn().mockReturnValue('development'),
 };
 
 describe('MailService', () => {
   let service: MailService;
+  let consoleSpy: jest.SpyInstance;
   let logSpy: jest.SpyInstance;
   let debugSpy: jest.SpyInstance;
 
@@ -21,7 +22,7 @@ describe('MailService', () => {
 
     service = module.get<MailService>(MailService);
 
-    // Spy on logger methods to capture output without printing
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     logSpy = jest
       .spyOn((service as any).logger, 'log')
       .mockImplementation();
@@ -32,10 +33,46 @@ describe('MailService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    mockConfigService.get.mockReturnValue('development');
   });
 
-  describe('sendVerificationEmail', () => {
-    it('should log with the correct name, email, and code', async () => {
+  describe('sendVerificationEmail — dev mode', () => {
+    it('should print the code to console.log in non-production', async () => {
+      await service.sendVerificationEmail(
+        'ahmad@example.com',
+        '654321',
+        'Ahmad',
+      );
+
+      const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+      expect(output).toContain('ahmad@example.com');
+      expect(output).toContain('654321');
+    });
+
+    it('should not call the SES/logger path in non-production', async () => {
+      await service.sendVerificationEmail(
+        'test@example.com',
+        '123456',
+        'Test',
+      );
+
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(debugSpy).not.toHaveBeenCalled();
+    });
+
+    it('should return early without throwing in non-production', async () => {
+      await expect(
+        service.sendVerificationEmail('test@example.com', '123456', 'Test'),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('sendVerificationEmail — production mode', () => {
+    beforeEach(() => {
+      mockConfigService.get.mockReturnValue('production');
+    });
+
+    it('should log with the correct name, email, and code via logger', async () => {
       await service.sendVerificationEmail(
         'ahmad@example.com',
         '654321',
@@ -59,36 +96,31 @@ describe('MailService', () => {
       expect(debugSpy).toHaveBeenCalledTimes(1);
       const htmlBody = debugSpy.mock.calls[0][0] as string;
 
-      // Contains the code
       expect(htmlBody).toContain('123456');
-      // Contains Arabic content
       expect(htmlBody).toContain('مرحباً');
       expect(htmlBody).toContain('dir="rtl"');
-      // Contains English content
       expect(htmlBody).toContain('Hello');
       expect(htmlBody).toContain('dir="ltr"');
-      // Contains the user's name in both sections
       expect(htmlBody).toContain('Test User');
     });
 
-    it('should send the email to the correct email address', async () => {
+    it('should not use console.log in production', async () => {
       await service.sendVerificationEmail(
-        'specific@email.com',
-        '111111',
-        'User',
+        'test@example.com',
+        '123456',
+        'Test',
       );
 
-      const logMessage = logSpy.mock.calls[0][0] as string;
-      expect(logMessage).toContain('specific@email.com');
+      // console.log should not have been called with verification code
+      const consoleOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+      expect(consoleOutput).not.toContain('Verification code');
     });
 
     it('should not throw if an internal error occurs (catches exceptions)', async () => {
-      // Force the logger to throw to simulate an internal error
       logSpy.mockImplementationOnce(() => {
         throw new Error('Logger crashed');
       });
 
-      // The method should not throw — it has a try/catch
       await expect(
         service.sendVerificationEmail('test@example.com', '123456', 'Test'),
       ).resolves.toBeUndefined();
