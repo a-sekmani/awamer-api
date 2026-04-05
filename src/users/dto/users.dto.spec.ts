@@ -62,8 +62,8 @@ describe('ChangePasswordDto', () => {
 
   it('should accept both fields present', async () => {
     const dto = plainToInstance(ChangePasswordDto, {
-      currentPassword: 'OldPass',
-      newPassword: 'NewPass123',
+      currentPassword: 'OldPass1!',
+      newPassword: 'NewPass123!',
     });
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
