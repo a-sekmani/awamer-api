@@ -28,7 +28,8 @@
       "Bash(git reset:*)",
       "Bash(git push:*)",
       "Bash(git:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(find src:*)"
     ]
   }
 }

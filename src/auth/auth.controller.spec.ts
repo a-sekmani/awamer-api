@@ -377,4 +377,134 @@ describe('AuthController', () => {
     });
   });
 
+  // ===========================================================================
+  // POST /auth/forgot-password (3 tests)
+  // ===========================================================================
+  describe('POST /auth/forgot-password', () => {
+    it('should pass IP and dto to authService.forgotPassword', async () => {
+      const mockReq = { ip: '192.168.1.1' } as any;
+
+      await controller.forgotPassword({ email: 'test@example.com' }, mockReq);
+
+      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(
+        { email: 'test@example.com' },
+        '192.168.1.1',
+      );
+    });
+
+    it('should always return 200 with same message', async () => {
+      const mockReq = { ip: '127.0.0.1' } as any;
+
+      const result = await controller.forgotPassword(
+        { email: 'nonexistent@example.com' },
+        mockReq,
+      );
+
+      expect(result).toEqual({
+        data: null,
+        message:
+          'If an account with that email exists, a password reset link has been sent',
+      });
+    });
+
+    it('should extract IP from request', async () => {
+      const mockReq = { ip: undefined, socket: { remoteAddress: '10.0.0.1' } } as any;
+
+      await controller.forgotPassword({ email: 'test@example.com' }, mockReq);
+
+      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith(
+        expect.anything(),
+        '10.0.0.1',
+      );
+    });
+  });
+
+  // ===========================================================================
+  // POST /auth/reset-password (2 tests)
+  // ===========================================================================
+  describe('POST /auth/reset-password', () => {
+    it('should call authService.resetPassword with dto', async () => {
+      await controller.resetPassword({ token: 'valid', password: 'NewPass1!' });
+
+      expect(mockAuthService.resetPassword).toHaveBeenCalledWith({
+        token: 'valid',
+        password: 'NewPass1!',
+      });
+    });
+
+    it('should return success message', async () => {
+      const result = await controller.resetPassword({
+        token: 'valid',
+        password: 'NewPass1!',
+      });
+
+      expect(result).toEqual({
+        data: null,
+        message: 'Password reset successful',
+      });
+    });
+  });
+
+  // ===========================================================================
+  // POST /auth/refresh (2 tests)
+  // ===========================================================================
+  describe('POST /auth/refresh', () => {
+    it('should extract refresh token from cookie and set new cookies', async () => {
+      const mockReq = { cookies: { refresh_token: 'old_rt' } } as any;
+      const mockRes = { cookie: jest.fn() } as any;
+
+      await controller.refresh(mockReq, mockRes);
+
+      expect(mockAuthService.refresh).toHaveBeenCalledWith('old_rt');
+      expect(mockRes.cookie).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return user data without tokens in body', async () => {
+      const mockReq = { cookies: { refresh_token: 'old_rt' } } as any;
+      const mockRes = { cookie: jest.fn() } as any;
+
+      const result = await controller.refresh(mockReq, mockRes);
+
+      expect(result).toEqual({
+        data: { user: expect.objectContaining({ email: 'test@example.com' }) },
+        message: 'Token refreshed',
+      });
+      expect(result.data).not.toHaveProperty('accessToken');
+    });
+  });
+
+  // ===========================================================================
+  // POST /auth/register — IP passthrough (2 tests)
+  // ===========================================================================
+  describe('POST /auth/register — IP passthrough', () => {
+    it('should pass IP from request to authService.register', async () => {
+      const mockReq = { ip: '185.0.0.1' } as any;
+      const mockRes = { cookie: jest.fn() } as any;
+
+      await controller.register(
+        { name: 'Test', email: 'test@example.com', password: 'Test1234!' },
+        mockReq,
+        mockRes,
+      );
+
+      expect(mockAuthService.register).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'test@example.com' }),
+        '185.0.0.1',
+      );
+    });
+
+    it('should not include accessToken in response body', async () => {
+      const mockReq = { ip: '127.0.0.1' } as any;
+      const mockRes = { cookie: jest.fn() } as any;
+
+      const result = await controller.register(
+        { name: 'Test', email: 'test@example.com', password: 'Test1234!' },
+        mockReq,
+        mockRes,
+      );
+
+      expect(result.data).not.toHaveProperty('accessToken');
+      expect(result.data).toHaveProperty('user');
+    });
+  });
 });
