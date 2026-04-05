@@ -42,13 +42,33 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test1234\"\n}"
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test1234!\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
-            }
+            },
+            "description": "Account lockout: after 10 consecutive failed attempts, the account is locked for 15 minutes. Returns INVALID_CREDENTIALS in all cases (no lockout leak)."
+          }
+        },
+        {
+          "name": "Login — Wrong Password (triggers lockout counter)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"WrongPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Each wrong password increments failedLoginAttempts. After 10 failures, account is locked for 15 minutes. Always returns 401 INVALID_CREDENTIALS."
           }
         },
         {

@@ -29,6 +29,8 @@ const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_COOLDOWN_MS = 60 * 1000; // 60 seconds per email
 const RATE_LIMIT_HOURLY_MAX = 5; // 5 per hour per email
 const RATE_LIMIT_DAILY_MAX_PER_IP = 10; // 10 per 24 hours per IP
+const LOGIN_MAX_FAILED_ATTEMPTS = 10;
+const LOGIN_LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const VERIFICATION_CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const VERIFICATION_MAX_ATTEMPTS = 5;
 
@@ -144,8 +146,30 @@ export class AuthService {
       });
     }
 
+    // Check account lockout
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException({
+        message: 'Invalid credentials',
+        errorCode: ErrorCode.INVALID_CREDENTIALS,
+      });
+    }
+
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
+      const newFailedAttempts = user.failedLoginAttempts + 1;
+      const lockout =
+        newFailedAttempts >= LOGIN_MAX_FAILED_ATTEMPTS
+          ? new Date(Date.now() + LOGIN_LOCKOUT_DURATION_MS)
+          : undefined;
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: newFailedAttempts,
+          ...(lockout && { lockedUntil: lockout }),
+        },
+      });
+
       throw new UnauthorizedException({
         message: 'Invalid credentials',
         errorCode: ErrorCode.INVALID_CREDENTIALS,
@@ -157,7 +181,11 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
     });
 
     return {

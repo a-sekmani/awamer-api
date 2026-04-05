@@ -37,6 +37,8 @@ const mockUser = {
   refreshToken: 'hashed_refresh',
   passwordResetToken: null as string | null,
   passwordResetExpires: null as Date | null,
+  failedLoginAttempts: 0,
+  lockedUntil: null as Date | null,
   lastLoginAt: null as Date | null,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -313,6 +315,139 @@ describe('AuthService', () => {
           }),
         }),
       );
+    });
+  });
+
+  // =========================================================================
+  // login — account lockout (6 tests)
+  // =========================================================================
+  describe('login — account lockout', () => {
+    const loginDto = { email: 'test@example.com', password: 'Test1234' };
+
+    it('should increment failedLoginAttempts on wrong password', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        failedLoginAttempts: 3,
+      });
+      bcrypt.compare.mockResolvedValue(false);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            failedLoginAttempts: 4,
+          }),
+        }),
+      );
+    });
+
+    it('should lock account after 10 failed attempts', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        failedLoginAttempts: 9,
+      });
+      bcrypt.compare.mockResolvedValue(false);
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            failedLoginAttempts: 10,
+            lockedUntil: expect.any(Date),
+          }),
+        }),
+      );
+
+      const updateCall = mockPrismaService.user.update.mock.calls[0][0];
+      const lockedUntil = updateCall.data.lockedUntil as Date;
+      const fifteenMinFromNow = Date.now() + 15 * 60 * 1000;
+      expect(lockedUntil.getTime()).toBeGreaterThan(Date.now());
+      expect(lockedUntil.getTime()).toBeLessThanOrEqual(
+        fifteenMinFromNow + 1000,
+      );
+    });
+
+    it('should reject locked account without checking password', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        failedLoginAttempts: 10,
+        lockedUntil: new Date(Date.now() + 10 * 60 * 1000), // locked for 10 more min
+      });
+
+      try {
+        await service.login(loginDto);
+        fail('Expected UnauthorizedException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnauthorizedException);
+        const response = (
+          error as UnauthorizedException
+        ).getResponse() as Record<string, unknown>;
+        expect(response.errorCode).toBe(ErrorCode.INVALID_CREDENTIALS);
+      }
+
+      // bcrypt.compare should NOT have been called
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it('should return INVALID_CREDENTIALS for locked account (no leak)', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        lockedUntil: new Date(Date.now() + 5 * 60 * 1000),
+      });
+
+      try {
+        await service.login(loginDto);
+        fail('Expected UnauthorizedException');
+      } catch (error) {
+        const response = (
+          error as UnauthorizedException
+        ).getResponse() as Record<string, unknown>;
+        expect(response.message).toBe('Invalid credentials');
+        expect(response.errorCode).toBe(ErrorCode.INVALID_CREDENTIALS);
+      }
+    });
+
+    it('should reset failedLoginAttempts on successful login', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        failedLoginAttempts: 5,
+      });
+      bcrypt.compare.mockResolvedValue(true);
+
+      await service.login(loginDto);
+
+      // The login-success update (second update call, after generateTokens)
+      const updateCalls = mockPrismaService.user.update.mock.calls;
+      const loginUpdate = updateCalls.find(
+        (call) => call[0].data.failedLoginAttempts === 0,
+      );
+      expect(loginUpdate).toBeDefined();
+      expect(loginUpdate[0].data).toEqual(
+        expect.objectContaining({
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        }),
+      );
+    });
+
+    it('should allow login after lockout period expires', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        failedLoginAttempts: 10,
+        lockedUntil: new Date(Date.now() - 1000), // expired 1 second ago
+      });
+      bcrypt.compare.mockResolvedValue(true);
+
+      const result = await service.login(loginDto);
+
+      expect(result.user).toBeDefined();
+      expect(result.accessToken).toBeDefined();
     });
   });
 
