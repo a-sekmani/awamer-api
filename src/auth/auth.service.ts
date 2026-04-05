@@ -581,11 +581,14 @@ export class AuthService {
       }),
     ]);
 
-    return { emailVerified: true };
+    const updatedUser = { ...user, emailVerified: true };
+    const { accessToken, refreshToken } = await this.generateTokens(updatedUser);
+
+    return { emailVerified: true, accessToken, refreshToken };
   }
 
   private async generateTokens(user: User, rememberMe = false) {
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+    const payload: JwtPayload = { sub: user.id, email: user.email, emailVerified: user.emailVerified };
 
     const accessToken = this.jwtService.sign(payload);
 

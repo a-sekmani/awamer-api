@@ -22,6 +22,8 @@ import {
 import { Public } from '../common/decorators/public.decorator';
 import { ConfigService } from '@nestjs/config';
 
+const COOKIE_MAX_AGE_DEFAULT = 7 * 24 * 60 * 60 * 1000;
+
 @Controller('auth')
 export class AuthController {
   private readonly isProduction: boolean;
@@ -131,10 +133,15 @@ export class AuthController {
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  async verifyEmail(@Req() req: Request, @Body() dto: VerifyEmailDto) {
+  async verifyEmail(
+    @Req() req: Request,
+    @Body() dto: VerifyEmailDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const { userId } = req.user as { userId: string };
     const result = await this.authService.verifyEmail(userId, dto.code);
-    return { data: result, message: 'Email verified successfully' };
+    this.setCookies(res, result.accessToken, result.refreshToken, COOKIE_MAX_AGE_DEFAULT);
+    return { data: { emailVerified: result.emailVerified }, message: 'Email verified successfully' };
   }
 
   @Post('resend-verification')

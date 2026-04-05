@@ -32,10 +32,11 @@ describe('JwtStrategy', () => {
     expect(mockConfigService.get).toHaveBeenCalledWith('JWT_SECRET');
   });
 
-  it('should return userId and email from validate()', () => {
+  it('should return userId, email, and emailVerified from validate()', () => {
     const payload = {
       sub: 'user-uuid',
       email: 'test@example.com',
+      emailVerified: true,
       iat: 1234567890,
       exp: 1234568790,
     };
@@ -45,6 +46,7 @@ describe('JwtStrategy', () => {
     expect(result).toEqual({
       userId: 'user-uuid',
       email: 'test@example.com',
+      emailVerified: true,
     });
   });
 
@@ -52,6 +54,7 @@ describe('JwtStrategy', () => {
     const payload = {
       sub: 'different-uuid',
       email: 'other@example.com',
+      emailVerified: false,
     };
 
     const result = strategy.validate(payload);
@@ -64,6 +67,7 @@ describe('JwtStrategy', () => {
     const payload = {
       sub: 'user-uuid',
       email: 'test@example.com',
+      emailVerified: true,
       iat: 1234567890,
       exp: 1234568790,
     };
@@ -72,7 +76,7 @@ describe('JwtStrategy', () => {
 
     expect(result).not.toHaveProperty('iat');
     expect(result).not.toHaveProperty('exp');
-    expect(Object.keys(result)).toEqual(['userId', 'email']);
+    expect(Object.keys(result)).toEqual(['userId', 'email', 'emailVerified']);
   });
 
   it('should extract token from access_token cookie', () => {

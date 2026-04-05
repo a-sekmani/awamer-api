@@ -38,7 +38,7 @@ const mockAuthService = {
   verifyResetToken: jest.fn().mockResolvedValue({ valid: true }),
   resetPassword: jest.fn().mockResolvedValue(undefined),
   sendVerificationCode: jest.fn().mockResolvedValue(undefined),
-  verifyEmail: jest.fn().mockResolvedValue({ emailVerified: true }),
+  verifyEmail: jest.fn().mockResolvedValue({ emailVerified: true, accessToken: 'at', refreshToken: 'rt' }),
 };
 
 const mockConfigService = {
@@ -263,8 +263,9 @@ describe('AuthController', () => {
   describe('POST /auth/verify-email', () => {
     it('should call authService.verifyEmail with userId and code', async () => {
       const mockReq = { user: { userId: 'user-uuid' } } as any;
+      const mockRes = { cookie: jest.fn() } as any;
 
-      await controller.verifyEmail(mockReq, { code: '123456' } as any);
+      await controller.verifyEmail(mockReq, { code: '123456' } as any, mockRes);
 
       expect(mockAuthService.verifyEmail).toHaveBeenCalledWith(
         'user-uuid',
@@ -272,27 +273,40 @@ describe('AuthController', () => {
       );
     });
 
-    it('should return 200 with emailVerified data on success', async () => {
+    it('should return 200 with emailVerified data and set cookies', async () => {
       const mockReq = { user: { userId: 'user-uuid' } } as any;
+      const mockRes = { cookie: jest.fn() } as any;
 
       const result = await controller.verifyEmail(mockReq, {
         code: '123456',
-      } as any);
+      } as any, mockRes);
 
       expect(result).toEqual({
         data: { emailVerified: true },
         message: 'Email verified successfully',
       });
+      expect(mockRes.cookie).toHaveBeenCalledTimes(2);
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'at',
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        'rt',
+        expect.objectContaining({ httpOnly: true }),
+      );
     });
 
     it('should propagate errors from authService', async () => {
       const mockReq = { user: { userId: 'user-uuid' } } as any;
+      const mockRes = { cookie: jest.fn() } as any;
       mockAuthService.verifyEmail.mockRejectedValueOnce(
         new BadRequestException('Invalid verification code'),
       );
 
       await expect(
-        controller.verifyEmail(mockReq, { code: '999999' } as any),
+        controller.verifyEmail(mockReq, { code: '999999' } as any, mockRes),
       ).rejects.toThrow('Invalid verification code');
     });
   });

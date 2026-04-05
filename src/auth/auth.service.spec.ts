@@ -103,7 +103,7 @@ const mockJwtService = {
   sign: jest.fn().mockReturnValue('mock_token'),
   verify: jest
     .fn()
-    .mockReturnValue({ sub: 'user-uuid', email: 'test@example.com' }),
+    .mockReturnValue({ sub: 'user-uuid', email: 'test@example.com', emailVerified: false }),
 };
 
 const mockConfigService = {
@@ -1234,7 +1234,9 @@ describe('AuthService', () => {
 
       const result = await service.verifyEmail('user-uuid', '123456');
 
-      expect(result).toEqual({ emailVerified: true });
+      expect(result.emailVerified).toBe(true);
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
 
