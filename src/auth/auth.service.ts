@@ -588,7 +588,18 @@ export class AuthService {
   }
 
   private async generateTokens(user: User, rememberMe = false) {
-    const payload: JwtPayload = { sub: user.id, email: user.email, emailVerified: user.emailVerified };
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { userId: user.id },
+      select: { role: true },
+    });
+    const roles = userRoles.map((r) => r.role);
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      roles,
+    };
 
     const accessToken = this.jwtService.sign(payload);
 
