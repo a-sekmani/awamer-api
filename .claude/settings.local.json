@@ -27,7 +27,8 @@
       "Bash(node:*)",
       "Bash(git reset:*)",
       "Bash(git push:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }
