@@ -25,6 +25,7 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User, RateLimitType } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 12;
+const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', BCRYPT_ROUNDS);
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_COOLDOWN_MS = 60 * 1000; // 60 seconds per email
 const RATE_LIMIT_HOURLY_MAX = 5; // 5 per hour per email
@@ -133,6 +134,7 @@ export class AuthService {
       where: { email },
     });
     if (!user) {
+      await bcrypt.compare(dto.password, DUMMY_HASH);
       throw new UnauthorizedException({
         message: 'Invalid credentials',
         errorCode: ErrorCode.INVALID_CREDENTIALS,

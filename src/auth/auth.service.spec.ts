@@ -19,6 +19,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed_value'),
+  hashSync: jest.fn().mockReturnValue('dummy_hashed_value'),
   compare: jest.fn().mockResolvedValue(true),
 }));
 
