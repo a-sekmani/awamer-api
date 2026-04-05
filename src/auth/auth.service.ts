@@ -521,7 +521,14 @@ export class AuthService {
       );
     }
 
-    if (verification.code !== code) {
+    const codeMatch =
+      verification.code.length === code.length &&
+      crypto.timingSafeEqual(
+        Buffer.from(verification.code),
+        Buffer.from(code),
+      );
+
+    if (!codeMatch) {
       const newAttempts = verification.attempts + 1;
       await this.prisma.emailVerification.update({
         where: { id: verification.id },
