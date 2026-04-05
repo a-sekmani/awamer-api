@@ -102,8 +102,10 @@ describe('AuthController', () => {
     } as any;
 
     // Test register
+    const mockReq = { ip: '127.0.0.1' } as any;
     await controller.register(
       { name: 'Test', email: 'test@example.com', password: 'Test1234' },
+      mockReq,
       mockRes,
     );
 

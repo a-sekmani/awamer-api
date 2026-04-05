@@ -42,9 +42,11 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async register(
     @Body() dto: RegisterDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.register(dto);
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+    const result = await this.authService.register(dto, ip);
     this.setCookies(res, result.accessToken, result.refreshToken, result.cookieMaxAge);
     return { data: { user: result.user }, message: 'Registration successful' };
   }

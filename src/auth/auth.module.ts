@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MailModule } from '../mail/mail.module';
+import { GeoipService } from '../common/geoip.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -24,7 +25,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, GeoipService],
   exports: [JwtAuthGuard, JwtModule],
 })
 export class AuthModule {}

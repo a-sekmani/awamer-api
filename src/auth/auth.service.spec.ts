@@ -13,6 +13,7 @@ import { plainToInstance } from 'class-transformer';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { GeoipService } from '../common/geoip.service';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -32,6 +33,8 @@ const mockUser = {
   email: 'test@example.com',
   passwordHash: 'hashed_value',
   country: 'SA',
+  registrationIp: null as string | null,
+  detectedCountry: null as string | null,
   locale: 'ar',
   status: 'ACTIVE',
   emailVerified: false,
@@ -109,6 +112,10 @@ const mockJwtService = {
     .mockReturnValue({ sub: 'user-uuid', email: 'test@example.com', emailVerified: false, roles: ['LEARNER'] }),
 };
 
+const mockGeoipService = {
+  getCountryFromIp: jest.fn().mockReturnValue('SA'),
+};
+
 const mockConfigService = {
   get: jest.fn().mockReturnValue('test_secret'),
 };
@@ -122,6 +129,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: MailService, useValue: mockMailService },
+        { provide: GeoipService, useValue: mockGeoipService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
@@ -236,6 +244,63 @@ describe('AuthService', () => {
           data: expect.objectContaining({
             planId: 'free-plan-id',
             status: 'ACTIVE',
+          }),
+        }),
+      );
+    });
+
+    it('should store registrationIp and detectedCountry when IP is provided', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockGeoipService.getCountryFromIp.mockReturnValue('SA');
+
+      await service.register(registerDto, '185.0.0.1');
+
+      expect(mockGeoipService.getCountryFromIp).toHaveBeenCalledWith(
+        '185.0.0.1',
+      );
+      expect(mockTx.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            registrationIp: '185.0.0.1',
+            detectedCountry: 'SA',
+          }),
+        }),
+      );
+    });
+
+    it('should use detectedCountry when country is not provided in body', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockGeoipService.getCountryFromIp.mockReturnValue('AE');
+
+      await service.register(
+        { name: 'Test', email: 'test@example.com', password: 'Test1234!' },
+        '185.0.0.2',
+      );
+
+      expect(mockTx.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            country: 'AE',
+            detectedCountry: 'AE',
+          }),
+        }),
+      );
+    });
+
+    it('should prefer frontend country over detectedCountry', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockGeoipService.getCountryFromIp.mockReturnValue('AE');
+
+      await service.register(
+        { ...registerDto, country: 'EG' },
+        '185.0.0.3',
+      );
+
+      expect(mockTx.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            country: 'EG',
+            detectedCountry: 'AE',
           }),
         }),
       );

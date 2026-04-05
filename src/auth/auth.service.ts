@@ -14,6 +14,7 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { GeoipService } from '../common/geoip.service';
 import { ErrorCode } from '../common/error-codes.enum';
 import {
   RegisterDto,
@@ -49,9 +50,10 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly geoipService: GeoipService,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, ip?: string) {
     const email = dto.email;
 
     const existing = await this.prisma.user.findUnique({
@@ -65,6 +67,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    const detectedCountry = ip ? this.geoipService.getCountryFromIp(ip) : null;
 
     const defaultPlan = await this.prisma.subscriptionPlan.findFirst({
       where: { isDefault: true },
@@ -76,7 +79,9 @@ export class AuthService {
           name: dto.name,
           email,
           passwordHash,
-          country: dto.country ?? null,
+          country: dto.country ?? detectedCountry ?? null,
+          registrationIp: ip ?? null,
+          detectedCountry: detectedCountry ?? null,
         },
       });
 

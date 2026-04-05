@@ -24,13 +24,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"Test1234\",\n  \"country\": \"SA\"\n}"
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"Test1234!\",\n  \"country\": \"SA\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "register"]
-            }
+            },
+            "description": "Country is optional. If omitted, the server auto-detects it from the request IP via GeoIP. The IP and detected country are stored internally (registrationIp, detectedCountry) but never exposed in API responses."
           }
         },
         {

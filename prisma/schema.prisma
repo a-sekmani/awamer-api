@@ -156,8 +156,10 @@ model User {
   name         String
   email        String     @unique
   passwordHash String
-  country      String?
-  locale       String     @default("ar")
+  country          String?
+  registrationIp   String?
+  detectedCountry  String?
+  locale           String     @default("ar")
   status       UserStatus @default(ACTIVE)
   emailVerified          Boolean    @default(false)
   refreshToken       String?
