@@ -204,7 +204,7 @@ model RateLimitedRequest {
 model EmailVerification {
   id        String   @id @default(uuid())
   userId    String
-  code      String   @db.VarChar(6)
+  code      String   @db.VarChar(64)
   expiresAt DateTime
   attempts  Int      @default(0)
   used      Boolean  @default(false)

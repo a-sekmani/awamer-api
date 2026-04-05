@@ -1021,7 +1021,7 @@ describe('AuthService', () => {
       expect(transactionCall).toBeDefined();
     });
 
-    it('should generate a code that is exactly 6 digits', async () => {
+    it('should send a plaintext 6-digit code via email', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.emailVerification.count.mockResolvedValue(0);
 
@@ -1032,6 +1032,25 @@ describe('AuthService', () => {
       expect(sentCode).toMatch(/^\d{6}$/);
       expect(parseInt(sentCode, 10)).toBeGreaterThanOrEqual(100000);
       expect(parseInt(sentCode, 10)).toBeLessThanOrEqual(999999);
+    });
+
+    it('should store the code as a SHA-256 hash, not plaintext', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockPrismaService.emailVerification.count.mockResolvedValue(0);
+
+      await service.sendVerificationCode('user-uuid');
+
+      const createCall =
+        mockPrismaService.emailVerification.create.mock.calls[0][0];
+      const storedCode = createCall.data.code as string;
+
+      // SHA-256 hex is 64 characters
+      expect(storedCode).toMatch(/^[a-f0-9]{64}$/);
+
+      // It should NOT be the plaintext 6-digit code
+      const sentCode =
+        mockMailService.sendVerificationEmail.mock.calls[0][1];
+      expect(storedCode).not.toBe(sentCode);
     });
 
     it('should set expiresAt to approximately 10 minutes from now', async () => {
@@ -1219,10 +1238,13 @@ describe('AuthService', () => {
   // verifyEmail (10 tests)
   // =========================================================================
   describe('verifyEmail', () => {
+    // SHA-256 of '123456'
+    const hashedCode =
+      '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
     const validVerification = {
       id: 'verification-uuid',
       userId: 'user-uuid',
-      code: '123456',
+      code: hashedCode,
       expiresAt: new Date(Date.now() + 600000),
       attempts: 0,
       used: false,

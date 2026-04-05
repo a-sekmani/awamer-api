@@ -496,6 +496,7 @@ export class AuthService {
     }
 
     const code = String(crypto.randomInt(100000, 999999));
+    const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
     const expiresAt = new Date(Date.now() + VERIFICATION_CODE_EXPIRY_MS);
 
     await this.prisma.$transaction([
@@ -506,7 +507,7 @@ export class AuthService {
       this.prisma.emailVerification.create({
         data: {
           userId,
-          code,
+          code: hashedCode,
           expiresAt,
         },
       }),
@@ -551,11 +552,12 @@ export class AuthService {
       );
     }
 
+    const hashedInput = crypto.createHash('sha256').update(code).digest('hex');
     const codeMatch =
-      verification.code.length === code.length &&
+      verification.code.length === hashedInput.length &&
       crypto.timingSafeEqual(
-        Buffer.from(verification.code),
-        Buffer.from(code),
+        Buffer.from(verification.code, 'hex'),
+        Buffer.from(hashedInput, 'hex'),
       );
 
     if (!codeMatch) {
