@@ -547,27 +547,6 @@ export class AuthService {
     return { emailVerified: true };
   }
 
-  async getLatestCodeByEmail(email: string): Promise<string> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
-      select: { id: true },
-    });
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
-
-    const verification = await this.prisma.emailVerification.findFirst({
-      where: { userId: user.id, used: false },
-      orderBy: { createdAt: 'desc' },
-      select: { code: true },
-    });
-    if (!verification) {
-      throw new BadRequestException('No verification code found');
-    }
-
-    return verification.code;
-  }
-
   private async generateTokens(user: User, rememberMe = false) {
     const payload: JwtPayload = { sub: user.id, email: user.email };
 

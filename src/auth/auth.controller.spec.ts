@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
@@ -39,7 +39,6 @@ const mockAuthService = {
   resetPassword: jest.fn().mockResolvedValue(undefined),
   sendVerificationCode: jest.fn().mockResolvedValue(undefined),
   verifyEmail: jest.fn().mockResolvedValue({ emailVerified: true }),
-  getLatestCodeByEmail: jest.fn().mockResolvedValue('654321'),
 };
 
 const mockConfigService = {
@@ -362,60 +361,4 @@ describe('AuthController', () => {
     });
   });
 
-  // ===========================================================================
-  // GET /auth/dev/latest-code/:email (4 tests)
-  // ===========================================================================
-  describe('GET /auth/dev/latest-code/:email', () => {
-    it('should return the latest code in non-production', async () => {
-      const result = await controller.getLatestCode('test@example.com');
-
-      expect(mockAuthService.getLatestCodeByEmail).toHaveBeenCalledWith(
-        'test@example.com',
-      );
-      expect(result).toEqual({
-        data: { code: '654321' },
-        message: 'Success',
-      });
-    });
-
-    it('should throw 403 in production', async () => {
-      // Create a production controller
-      mockConfigService.get.mockReturnValue('production');
-      const module: TestingModule = await Test.createTestingModule({
-        controllers: [AuthController],
-        providers: [
-          { provide: AuthService, useValue: mockAuthService },
-          { provide: ConfigService, useValue: mockConfigService },
-        ],
-      }).compile();
-      const prodController = module.get<AuthController>(AuthController);
-
-      await expect(
-        prodController.getLatestCode('test@example.com'),
-      ).rejects.toThrow(ForbiddenException);
-
-      // Reset for other tests
-      mockConfigService.get.mockReturnValue('development');
-    });
-
-    it('should throw 404 if no code exists', async () => {
-      mockAuthService.getLatestCodeByEmail.mockRejectedValueOnce(
-        new BadRequestException('No verification code found'),
-      );
-
-      await expect(
-        controller.getLatestCode('nocode@example.com'),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw 404 if user not found', async () => {
-      mockAuthService.getLatestCodeByEmail.mockRejectedValueOnce(
-        new BadRequestException('User not found'),
-      );
-
-      await expect(
-        controller.getLatestCode('nobody@example.com'),
-      ).rejects.toThrow(NotFoundException);
-    });
-  });
 });

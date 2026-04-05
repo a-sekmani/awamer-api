@@ -1,12 +1,9 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
-  Param,
   Post,
   Query,
   Req,
@@ -148,22 +145,6 @@ export class AuthController {
     const ip = req.ip || req.socket?.remoteAddress || 'unknown';
     await this.authService.sendVerificationCode(userId, ip);
     return { data: null, message: 'Verification code resent to your email' };
-  }
-
-  @Public()
-  @Get('dev/latest-code/:email')
-  @HttpCode(HttpStatus.OK)
-  async getLatestCode(@Param('email') email: string) {
-    if (this.isProduction) {
-      throw new ForbiddenException('This endpoint is not available in production');
-    }
-
-    try {
-      const code = await this.authService.getLatestCodeByEmail(email);
-      return { data: { code }, message: 'Success' };
-    } catch {
-      throw new NotFoundException('No verification code found for this email');
-    }
   }
 
   private setCookies(res: Response, accessToken: string, refreshToken: string, refreshMaxAge: number) {
