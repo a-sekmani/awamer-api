@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
@@ -15,6 +16,7 @@ export class RegisterDto {
   @MaxLength(100)
   name!: string;
 
+  @Transform(({ value }) => value?.trim().toLowerCase())
   @IsEmail()
   @MaxLength(255)
   email!: string;

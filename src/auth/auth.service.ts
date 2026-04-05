@@ -49,7 +49,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email;
 
     const existing = await this.prisma.user.findUnique({
       where: { email },
@@ -125,7 +125,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email;
 
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -239,7 +239,7 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto, ip: string) {
-    const email = dto.email.trim().toLowerCase();
+    const email = dto.email;
 
     await this.checkRateLimit(email, ip, RateLimitType.FORGOT_PASSWORD);
 

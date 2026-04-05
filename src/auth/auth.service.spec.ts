@@ -180,17 +180,15 @@ describe('AuthService', () => {
       expect(bcrypt.hash).toHaveBeenCalledWith('Test1234', 12);
     });
 
-    it('should normalize email to lowercase', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
-
-      await service.register({
-        ...registerDto,
+    it('should normalize email via DTO @Transform', async () => {
+      const dto = plainToInstance(RegisterDto, {
+        name: 'Test',
         email: '  Test@Example.COM  ',
+        password: 'Test1234!',
+        country: 'SA',
       });
 
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-      });
+      expect(dto.email).toBe('test@example.com');
     });
 
     it('should reject weak password via DTO validation', async () => {
