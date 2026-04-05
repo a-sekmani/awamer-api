@@ -29,6 +29,12 @@ coverage/
 prisma/*.db
 prisma/*.db-journal
 
+# Claude Code personal settings
+.claude/settings.local.json
+
+# npm pack output
+*.tgz
+
 # Misc
 *.tmp
 *.swp

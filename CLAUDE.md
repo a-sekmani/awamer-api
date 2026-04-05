@@ -160,17 +160,17 @@ All steps are in a single Prisma transaction.
 ## Environment Variables
 
 ```
-DATABASE_URL=postgresql://user:pass@localhost:5432/awamer
-JWT_SECRET=your-jwt-secret
-JWT_REFRESH_SECRET=your-refresh-secret
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
+DATABASE_URL=postgresql://user:password@localhost:5432/awamer
+JWT_SECRET=<your-jwt-secret>
+JWT_REFRESH_SECRET=<your-jwt-refresh-secret>
+STRIPE_SECRET_KEY=<your-stripe-secret-key>
+STRIPE_WEBHOOK_SECRET=<your-stripe-webhook-secret>
+AWS_ACCESS_KEY_ID=<your-aws-access-key-id>
+AWS_SECRET_ACCESS_KEY=<your-aws-secret-access-key>
 AWS_REGION=eu-west-1
 S3_BUCKET_NAME=awamer-files
 SES_FROM_EMAIL=noreply@awamer.com
-POSTHOG_API_KEY=phc_...
+POSTHOG_API_KEY=<your-posthog-api-key>
 FRONTEND_URL=http://localhost:3000
 PORT=3001
 ```
