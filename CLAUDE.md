@@ -193,10 +193,10 @@ PORT=3001
 - certificate_issued
 
 ## Recent Changes
+- 008-onboarding-validation: Added TypeScript 5.x (Node.js 20 LTS) + NestJS 10, Prisma 6.19, class-validator, class-transformer
 - 007-email-verification: Added TypeScript 5.x (Node.js 20 LTS) + NestJS 10, Prisma 6.19, @nestjs/jwt, @nestjs/passport, bcryptjs, class-validator, class-transformer, @nestjs/throttler, cookie-parser
 - 006-users-unit-tests: Added TypeScript 5.x (Node.js 20 LTS) + Jest 29, @nestjs/testing, ts-jest, bcryptjs, class-validator, class-transformer
-- 005-users-module: Added TypeScript 5.x (Node.js 20 LTS) + NestJS 10, Prisma 6.19, bcryptjs, class-validator, class-transformer, @nestjs/throttler
 
 ## Active Technologies
-- TypeScript 5.x (Node.js 20 LTS) + NestJS 10, Prisma 6.19, @nestjs/jwt, @nestjs/passport, bcryptjs, class-validator, class-transformer, @nestjs/throttler, cookie-parser (007-email-verification)
-- PostgreSQL via Prisma ORM (007-email-verification)
+- TypeScript 5.x (Node.js 20 LTS) + NestJS 10, Prisma 6.19, class-validator, class-transformer (008-onboarding-validation)
+- PostgreSQL via Prisma ORM (existing schema — no migration) (008-onboarding-validation)

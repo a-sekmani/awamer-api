@@ -32,7 +32,8 @@
       "Bash(find src:*)",
       "Bash(grep -h \"^import.*from\" /Users/ahmadsekmani/Desktop/Projects/awamer-api/src/*/[a-z]*.module.ts)",
       "Bash(xargs ls:*)",
-      "Bash(xargs -0 '-I{}' sh -c 'size=$\\(wc -c < \"{}\" 2>/dev/null || echo 0\\); if [ \"$size\" -gt 1048576 ]; then echo \"{}: ${size} bytes\"; fi')"
+      "Bash(xargs -0 '-I{}' sh -c 'size=$\\(wc -c < \"{}\" 2>/dev/null || echo 0\\); if [ \"$size\" -gt 1048576 ]; then echo \"{}: ${size} bytes\"; fi')",
+      "Bash(.specify/scripts/bash/create-new-feature.sh Add strict validation to existing onboarding endpoints matching the final Figma design. Validate questionKeys, answers, stepNumbers, and interest limits. Prevent duplicate submissions.:*)"
     ]
   }
 }

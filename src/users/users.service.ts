@@ -6,7 +6,14 @@ import { ErrorCode } from '../common/error-codes.enum';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { SubmitOnboardingDto } from './dto/onboarding.dto';
+import {
+  SubmitOnboardingDto,
+  VALID_BACKGROUNDS,
+  VALID_INTERESTS,
+  VALID_GOALS,
+  MIN_INTERESTS,
+  MAX_INTERESTS,
+} from './dto/onboarding.dto';
 import { User } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 12;
@@ -98,7 +105,121 @@ export class UsersService {
   }
 
   async submitOnboarding(userId: string, dto: SubmitOnboardingDto) {
+    // 1. Check if already completed
+    const existingProfile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+    });
+    if (existingProfile?.onboardingCompleted) {
+      throw new BadRequestException({
+        message: 'Onboarding already completed',
+        errorCode: ErrorCode.ONBOARDING_ALREADY_COMPLETED,
+      });
+    }
+
+    // 2. Validate all 3 required keys are present
+    const keys = dto.responses.map((r) => r.questionKey);
+    for (const required of ['background', 'interests', 'goals'] as const) {
+      if (!keys.includes(required)) {
+        throw new BadRequestException(
+          `Missing required questionKey: ${required}`,
+        );
+      }
+    }
+
+    const backgroundResponse = dto.responses.find(
+      (r) => r.questionKey === 'background',
+    )!;
+    const interestsResponse = dto.responses.find(
+      (r) => r.questionKey === 'interests',
+    )!;
+    const goalsResponse = dto.responses.find(
+      (r) => r.questionKey === 'goals',
+    )!;
+
+    // 3. Validate stepNumber consistency
+    if (backgroundResponse.stepNumber !== 1) {
+      throw new BadRequestException(
+        'background must have stepNumber 1',
+      );
+    }
+    if (interestsResponse.stepNumber !== 2) {
+      throw new BadRequestException(
+        'interests must have stepNumber 2',
+      );
+    }
+    if (goalsResponse.stepNumber !== 3) {
+      throw new BadRequestException('goals must have stepNumber 3');
+    }
+
+    // 4. Validate background answer
+    if (
+      !(VALID_BACKGROUNDS as readonly string[]).includes(
+        backgroundResponse.answer,
+      )
+    ) {
+      throw new BadRequestException(
+        `Invalid background value: ${backgroundResponse.answer}`,
+      );
+    }
+
+    // 5. Validate goals answer
+    if (
+      !(VALID_GOALS as readonly string[]).includes(goalsResponse.answer)
+    ) {
+      throw new BadRequestException(
+        `Invalid goals value: ${goalsResponse.answer}`,
+      );
+    }
+
+    // 6. Validate interests answer
+    let interestsArray: unknown;
+    try {
+      interestsArray = JSON.parse(interestsResponse.answer);
+    } catch {
+      throw new BadRequestException(
+        'interests answer must be a valid JSON array',
+      );
+    }
+
+    if (!Array.isArray(interestsArray)) {
+      throw new BadRequestException(
+        'interests answer must be a JSON array',
+      );
+    }
+
+    if (
+      interestsArray.length < MIN_INTERESTS ||
+      interestsArray.length > MAX_INTERESTS
+    ) {
+      throw new BadRequestException(
+        `interests must contain between ${MIN_INTERESTS} and ${MAX_INTERESTS} items`,
+      );
+    }
+
+    for (const item of interestsArray) {
+      if (
+        typeof item !== 'string' ||
+        !(VALID_INTERESTS as readonly string[]).includes(item)
+      ) {
+        throw new BadRequestException(
+          `Invalid interest value: ${String(item)}`,
+        );
+      }
+    }
+
+    const uniqueInterests = new Set(interestsArray);
+    if (uniqueInterests.size !== interestsArray.length) {
+      throw new BadRequestException(
+        'interests must not contain duplicate values',
+      );
+    }
+
+    // 7. Transaction: delete old + create new + update profile
     const profile = await this.prisma.$transaction(async (tx) => {
+      await tx.onboardingResponse.deleteMany({
+        where: { userId },
+      });
+
       await tx.onboardingResponse.createMany({
         data: dto.responses.map((r) => ({
           userId,
@@ -111,9 +232,9 @@ export class UsersService {
       const updatedProfile = await tx.userProfile.update({
         where: { userId },
         data: {
-          background: dto.background ?? undefined,
-          goals: dto.goals ?? undefined,
-          interests: dto.interests ?? undefined,
+          background: backgroundResponse.answer,
+          goals: goalsResponse.answer,
+          interests: interestsResponse.answer,
           onboardingCompleted: true,
         },
       });
@@ -121,6 +242,7 @@ export class UsersService {
       return updatedProfile;
     });
 
+    // 8. Analytics
     this.analyticsService.capture(userId, 'onboarding_completed');
 
     return profile;

@@ -71,33 +71,190 @@ describe('ChangePasswordDto', () => {
 });
 
 describe('SubmitOnboardingDto', () => {
+  const validPayload = {
+    responses: [
+      { questionKey: 'background', answer: 'student', stepNumber: 1 },
+      { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+      { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+    ],
+  };
+
+  it('should accept valid 3-response payload with correct keys and stepNumbers', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, validPayload);
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
   it('should reject empty responses array', async () => {
     const dto = plainToInstance(SubmitOnboardingDto, { responses: [] });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('should reject missing questionKey in item', async () => {
+  it('should reject responses with fewer than 3 items', async () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
-      responses: [{ answer: 'a', stepNumber: 1 }],
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+      ],
     });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('should reject non-number stepNumber', async () => {
+  it('should reject responses with more than 3 items', async () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
-      responses: [{ questionKey: 'q', answer: 'a', stepNumber: 'abc' }],
+      responses: [
+        ...validPayload.responses,
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+      ],
     });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('should accept valid responses array', async () => {
+  it('should reject invalid questionKey (e.g., "favorite_color")', async () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
-      responses: [{ questionKey: 'q', answer: 'a', stepNumber: 1 }],
+      responses: [
+        { questionKey: 'favorite_color', answer: 'blue', stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
     });
     const errors = await validate(dto);
-    expect(errors).toHaveLength(0);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject stepNumber of 0', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 0 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject stepNumber of 4', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 4 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject stepNumber that is a string', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 'abc' },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject stepNumber that is a float (e.g., 1.5)', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1.5 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject missing questionKey in response item', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject missing answer in response item', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject missing stepNumber in response item', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student' },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject empty string questionKey', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: '', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject empty string answer', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: '', stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject answer exceeding 1000 characters', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'a'.repeat(1001), stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject non-array responses (e.g., object)', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: { questionKey: 'background', answer: 'student', stepNumber: 1 },
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject when responses is undefined', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {});
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
   });
 });

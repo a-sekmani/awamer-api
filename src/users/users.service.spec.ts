@@ -75,7 +75,10 @@ const mockUser = {
 };
 
 const mockTx = {
-  onboardingResponse: { createMany: jest.fn().mockResolvedValue({ count: 3 }) },
+  onboardingResponse: {
+    createMany: jest.fn().mockResolvedValue({ count: 3 }),
+    deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+  },
   userProfile: { update: jest.fn().mockResolvedValue({ ...mockProfile, onboardingCompleted: true }) },
 };
 
@@ -382,105 +385,384 @@ describe('UsersService', () => {
   // submitOnboarding
   // =========================================================================
   describe('submitOnboarding', () => {
-    const onboardingDto = {
+    const validDto = {
       responses: [
-        { questionKey: 'level', answer: 'beginner', stepNumber: 1 },
-        { questionKey: 'goal', answer: 'career', stepNumber: 2 },
-        { questionKey: 'interest', answer: 'ai', stepNumber: 3 },
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai","programming"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
-      background: 'Student',
-      goals: 'AI Career',
-      interests: 'ML, Cloud',
     };
 
-    it('should create correct number of OnboardingResponse records', async () => {
-      await service.submitOnboarding('user-uuid', onboardingDto);
-
-      expect(mockTx.onboardingResponse.createMany).toHaveBeenCalledWith({
-        data: expect.arrayContaining([
-          expect.objectContaining({ questionKey: 'level' }),
-          expect.objectContaining({ questionKey: 'goal' }),
-          expect.objectContaining({ questionKey: 'interest' }),
-        ]),
-      });
-
-      const callData =
-        mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
-      expect(callData).toHaveLength(3);
-    });
-
-    it('should include userId, questionKey, answer, stepNumber in each record', async () => {
-      await service.submitOnboarding('user-uuid', onboardingDto);
-
-      const callData =
-        mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
-      callData.forEach(
-        (record: {
-          userId: string;
-          questionKey: string;
-          answer: string;
-          stepNumber: number;
-        }) => {
-          expect(record).toHaveProperty('userId', 'user-uuid');
-          expect(record).toHaveProperty('questionKey');
-          expect(record).toHaveProperty('answer');
-          expect(record).toHaveProperty('stepNumber');
-        },
-      );
-    });
-
-    it('should update profile with background, goals, interests, onboardingCompleted', async () => {
-      await service.submitOnboarding('user-uuid', onboardingDto);
-
-      expect(mockTx.userProfile.update).toHaveBeenCalledWith({
-        where: { userId: 'user-uuid' },
-        data: expect.objectContaining({
-          background: 'Student',
-          goals: 'AI Career',
-          interests: 'ML, Cloud',
-          onboardingCompleted: true,
-        }),
-      });
-    });
-
-    it('should call analytics capture with onboarding_completed', async () => {
-      await service.submitOnboarding('user-uuid', onboardingDto);
-
-      expect(mockAnalyticsService.capture).toHaveBeenCalledWith(
-        'user-uuid',
-        'onboarding_completed',
-      );
-    });
-
-    it('should return updated profile', async () => {
-      const expectedProfile = {
+    beforeEach(() => {
+      mockPrismaService.userProfile.findUnique.mockResolvedValue({
         ...mockProfile,
-        onboardingCompleted: true,
-      };
-      mockTx.userProfile.update.mockResolvedValue(expectedProfile);
-
-      const result = await service.submitOnboarding(
-        'user-uuid',
-        onboardingDto,
-      );
-
-      expect(result).toEqual(expectedProfile);
+        onboardingCompleted: false,
+      });
     });
 
-    it('should use prisma.$transaction', async () => {
-      await service.submitOnboarding('user-uuid', onboardingDto);
+    // -----------------------------------------------------------------------
+    // Happy path (11 tests)
+    // -----------------------------------------------------------------------
+    describe('happy path', () => {
+      it('should delete existing responses before creating new ones (idempotency)', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
 
-      expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockTx.onboardingResponse.deleteMany).toHaveBeenCalledWith({
+          where: { userId: 'user-uuid' },
+        });
+      });
+
+      it('should create exactly 3 OnboardingResponse records', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        const callData = mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
+        expect(callData).toHaveLength(3);
+      });
+
+      it('should include userId in each response record', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        const callData = mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
+        callData.forEach((r: { userId: string }) => {
+          expect(r.userId).toBe('user-uuid');
+        });
+      });
+
+      it('should store background value in UserProfile.background', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ background: 'student' }),
+          }),
+        );
+      });
+
+      it('should store goals value in UserProfile.goals', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ goals: 'learn_new_skill' }),
+          }),
+        );
+      });
+
+      it('should store interests JSON array string in UserProfile.interests', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ interests: '["ai","programming"]' }),
+          }),
+        );
+      });
+
+      it('should set onboardingCompleted to true', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ onboardingCompleted: true }),
+          }),
+        );
+      });
+
+      it('should fire analyticsService.capture with onboarding_completed', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        expect(mockAnalyticsService.capture).toHaveBeenCalledWith('user-uuid', 'onboarding_completed');
+      });
+
+      it('should use prisma.$transaction for atomicity', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
+      });
+
+      it('should return the updated UserProfile', async () => {
+        const expected = { ...mockProfile, onboardingCompleted: true };
+        mockTx.userProfile.update.mockResolvedValue(expected);
+
+        const result = await service.submitOnboarding('user-uuid', validDto);
+
+        expect(result).toEqual(expected);
+      });
+
+      it('should throw on transaction failure (rollback)', async () => {
+        mockPrismaService.$transaction.mockRejectedValue(new Error('Transaction failed'));
+
+        await expect(service.submitOnboarding('user-uuid', validDto)).rejects.toThrow('Transaction failed');
+      });
     });
 
-    it('should throw on transaction failure', async () => {
-      mockPrismaService.$transaction.mockRejectedValue(
-        new Error('Transaction failed'),
-      );
+    // -----------------------------------------------------------------------
+    // Validation (15 tests)
+    // -----------------------------------------------------------------------
+    describe('validation', () => {
+      it('should throw ONBOARDING_ALREADY_COMPLETED if profile.onboardingCompleted is true', async () => {
+        mockPrismaService.userProfile.findUnique.mockResolvedValue({
+          ...mockProfile,
+          onboardingCompleted: true,
+        });
 
-      await expect(
-        service.submitOnboarding('user-uuid', onboardingDto),
-      ).rejects.toThrow('Transaction failed');
+        await expect(service.submitOnboarding('user-uuid', validDto)).rejects.toThrow('Onboarding already completed');
+      });
+
+      it('should throw if "background" questionKey is missing', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Missing required questionKey: background');
+      });
+
+      it('should throw if "interests" questionKey is missing', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Missing required questionKey: interests');
+      });
+
+      it('should throw if "goals" questionKey is missing', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Missing required questionKey: goals');
+      });
+
+      it('should throw if background stepNumber is not 1', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 2 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('background must have stepNumber 1');
+      });
+
+      it('should throw if interests stepNumber is not 2', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 1 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('interests must have stepNumber 2');
+      });
+
+      it('should throw if goals stepNumber is not 3', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 1 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('goals must have stepNumber 3');
+      });
+
+      it('should throw if background answer is not in VALID_BACKGROUNDS', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'astronaut', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid background value');
+      });
+
+      it('should throw if goals answer is not in VALID_GOALS', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'become_famous', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid goals value');
+      });
+
+      it('should throw if interests answer is not valid JSON', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: 'not-json', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('valid JSON array');
+      });
+
+      it('should throw if interests answer is not a JSON array (e.g., JSON object)', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '{"key":"value"}', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('must be a JSON array');
+      });
+
+      it('should throw if interests answer is an empty array', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '[]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('between 1 and 4');
+      });
+
+      it('should throw if interests has more than 4 items', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai","programming","cybersecurity","cloud_devops","blockchain"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('between 1 and 4');
+      });
+
+      it('should throw if interests contains a value not in VALID_INTERESTS', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai","cooking"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid interest value');
+      });
+
+      it('should throw if interests contains duplicate values', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai","ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('duplicate values');
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // Edge cases (5 tests)
+    // -----------------------------------------------------------------------
+    describe('edge cases', () => {
+      beforeEach(() => {
+        mockPrismaService.userProfile.findUnique.mockResolvedValue({
+          ...mockProfile,
+          onboardingCompleted: false,
+        });
+        mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
+      });
+
+      it('should accept interests with exactly 1 item (minimum)', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+      });
+
+      it('should accept interests with exactly 4 items (maximum)', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '["ai","programming","cybersecurity","cloud_devops"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+      });
+
+      it('should accept all valid background values one by one', async () => {
+        for (const bg of ['student', 'freelancer', 'employee', 'job_seeker']) {
+          jest.clearAllMocks();
+          mockPrismaService.userProfile.findUnique.mockResolvedValue({ ...mockProfile, onboardingCompleted: false });
+          mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
+
+          const dto = {
+            responses: [
+              { questionKey: 'background', answer: bg, stepNumber: 1 },
+              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          };
+
+          await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+        }
+      });
+
+      it('should accept all valid goal values one by one', async () => {
+        for (const goal of ['learn_new_skill', 'level_up', 'advance_career', 'switch_career', 'build_project']) {
+          jest.clearAllMocks();
+          mockPrismaService.userProfile.findUnique.mockResolvedValue({ ...mockProfile, onboardingCompleted: false });
+          mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
+
+          const dto = {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: goal, stepNumber: 3 },
+            ],
+          };
+
+          await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+        }
+      });
+
+      it('should accept all valid interest values', async () => {
+        const allInterests = ['programming', 'data_science', 'ai', 'mobile_dev'];
+
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: JSON.stringify(allInterests), stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+      });
     });
   });
 
