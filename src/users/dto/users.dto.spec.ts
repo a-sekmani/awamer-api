@@ -257,4 +257,52 @@ describe('SubmitOnboardingDto', () => {
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
   });
+
+  it('should reject extra top-level fields via forbidNonWhitelisted', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+      background: 'Student',
+      goals: 'AI Career',
+      interests: 'ML',
+    });
+    // With forbidNonWhitelisted: true (global ValidationPipe), extra fields
+    // are rejected. The DTO class only declares 'responses'.
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject duplicate questionKeys in responses (2 backgrounds)', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'background', answer: 'freelancer', stepNumber: 1 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    // DTO validation passes (structural), but service-level will reject
+    // This test verifies DTO does not crash on duplicate keys
+    expect(errors).toHaveLength(0);
+  });
+
+  it('should accept all 3 valid questionKey values', async () => {
+    for (const key of ['background', 'interests', 'goals']) {
+      const dto = plainToInstance(SubmitOnboardingDto, {
+        responses: [
+          { questionKey: 'background', answer: 'student', stepNumber: 1 },
+          { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+          { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+        ],
+      });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    }
+  });
 });

@@ -518,6 +518,78 @@ describe('UsersService', () => {
     });
 
     // -----------------------------------------------------------------------
+    // Token reissue (5 tests)
+    // -----------------------------------------------------------------------
+    describe('token reissue', () => {
+      beforeEach(() => {
+        mockPrismaService.userProfile.findUnique.mockResolvedValue({
+          ...mockProfile,
+          onboardingCompleted: false,
+        });
+        mockPrismaService.user.findUnique.mockResolvedValue({
+          id: 'user-uuid',
+          email: 'test@example.com',
+          emailVerified: true,
+          roles: [{ role: 'LEARNER' }],
+        });
+        mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
+      });
+
+      it('should issue new access token with onboardingCompleted: true', async () => {
+        const result = await service.submitOnboarding('user-uuid', validDto);
+
+        expect(result.accessToken).toBeDefined();
+        expect(result.accessToken).toBe('mock_token');
+      });
+
+      it('should issue new refresh token', async () => {
+        const result = await service.submitOnboarding('user-uuid', validDto);
+
+        expect(result.refreshToken).toBeDefined();
+        expect(result.refreshToken).toBe('mock_token');
+      });
+
+      it('should sign refresh token with JWT_REFRESH_SECRET', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        // Second call to jwtService.sign is for the refresh token
+        const signCalls = mockJwtService.sign.mock.calls;
+        expect(signCalls.length).toBeGreaterThanOrEqual(2);
+        expect(signCalls[1][1]).toEqual(
+          expect.objectContaining({
+            secret: 'test_secret',
+          }),
+        );
+      });
+
+      it('should store hashed refresh token in DB', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        // user.update is called to store hashed refresh token
+        expect(mockPrismaService.user.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: 'user-uuid' },
+            data: expect.objectContaining({
+              refreshToken: expect.any(String),
+            }),
+          }),
+        );
+      });
+
+      it('should include correct roles in reissued token payload', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        expect(mockJwtService.sign).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sub: 'user-uuid',
+            onboardingCompleted: true,
+            roles: ['LEARNER'],
+          }),
+        );
+      });
+    });
+
+    // -----------------------------------------------------------------------
     // Validation (15 tests)
     // -----------------------------------------------------------------------
     describe('validation', () => {
@@ -697,6 +769,58 @@ describe('UsersService', () => {
 
         await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('duplicate values');
       });
+
+      it('should throw if interests contains a number instead of string', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '[1, 2]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid interest value');
+      });
+
+      it('should throw if interests contains null values', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '[null, "ai"]', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid interest value');
+      });
+
+      it('should throw if interests is a JSON string (not array)', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            { questionKey: 'interests', answer: '"ai"', stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('must be a JSON array');
+      });
+
+      it('should throw ONBOARDING_ALREADY_COMPLETED with correct errorCode', async () => {
+        mockPrismaService.userProfile.findUnique.mockResolvedValue({
+          ...mockProfile,
+          onboardingCompleted: true,
+        });
+
+        try {
+          await service.submitOnboarding('user-uuid', validDto);
+          fail('Expected BadRequestException');
+        } catch (error) {
+          expect(error).toBeInstanceOf(BadRequestException);
+          const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+          expect(response.errorCode).toBe('ONBOARDING_ALREADY_COMPLETED');
+        }
+      });
     });
 
     // -----------------------------------------------------------------------
@@ -834,6 +958,26 @@ describe('UsersService', () => {
       ).toHaveBeenCalledWith({
         where: { userId: 'user-uuid' },
         orderBy: { stepNumber: 'asc' },
+      });
+    });
+
+    it('should return completed false when profile does not exist', async () => {
+      mockPrismaService.userProfile.findUnique.mockResolvedValue(null);
+      mockPrismaService.onboardingResponse.findMany.mockResolvedValue([]);
+
+      const result = await service.getOnboardingStatus('user-uuid');
+
+      expect(result.completed).toBe(false);
+    });
+
+    it('should query profile with correct userId', async () => {
+      mockPrismaService.userProfile.findUnique.mockResolvedValue(mockProfile);
+      mockPrismaService.onboardingResponse.findMany.mockResolvedValue([]);
+
+      await service.getOnboardingStatus('specific-user-id');
+
+      expect(mockPrismaService.userProfile.findUnique).toHaveBeenCalledWith({
+        where: { userId: 'specific-user-id' },
       });
     });
   });

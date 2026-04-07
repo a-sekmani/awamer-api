@@ -154,4 +154,53 @@ describe('UsersController', () => {
     );
     expect(result).toEqual({ data: mockStatus, message: 'Success' });
   });
+
+  it('POST /users/me/onboarding sets refresh_token cookie with correct path', async () => {
+    mockUsersService.submitOnboarding.mockResolvedValue({
+      profile: { onboardingCompleted: true },
+      accessToken: 'at',
+      refreshToken: 'rt',
+    });
+
+    const mockReq = { user: { userId: 'user-uuid' } } as any;
+    const mockRes = { cookie: jest.fn() } as any;
+    const dto = {
+      responses: [{ questionKey: 'q', answer: 'a', stepNumber: 1 }],
+    };
+    await controller.submitOnboarding(mockReq, dto as any, mockRes);
+
+    expect(mockRes.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'rt',
+      expect.objectContaining({
+        httpOnly: true,
+        path: '/api/v1/auth',
+      }),
+    );
+  });
+
+  it('POST /users/me/onboarding propagates service errors', async () => {
+    mockUsersService.submitOnboarding.mockRejectedValue(
+      new Error('Onboarding already completed'),
+    );
+
+    const mockReq = { user: { userId: 'user-uuid' } } as any;
+    const mockRes = { cookie: jest.fn() } as any;
+
+    await expect(
+      controller.submitOnboarding(mockReq, { responses: [] } as any, mockRes),
+    ).rejects.toThrow('Onboarding already completed');
+  });
+
+  it('GET /users/me/onboarding propagates service errors', async () => {
+    mockUsersService.getOnboardingStatus.mockRejectedValue(
+      new Error('Database error'),
+    );
+
+    const mockReq = { user: { userId: 'user-uuid' } } as any;
+
+    await expect(controller.getOnboardingStatus(mockReq)).rejects.toThrow(
+      'Database error',
+    );
+  });
 });
