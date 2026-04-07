@@ -859,6 +859,15 @@ describe('Auth (e2e)', () => {
   // ═══════════════════════════════════════════════════════════════════
 
   describe('POST /api/v1/auth/forgot-password', () => {
+    // The forgot-password endpoint has its own internal rate limiting
+    // (60s cooldown per email, 5/hour, 10/day per IP). Clear all
+    // FORGOT_PASSWORD records before each test to avoid cross-test interference.
+    beforeEach(async () => {
+      await prisma.rateLimitedRequest.deleteMany({
+        where: { type: 'FORGOT_PASSWORD' },
+      });
+    });
+
     it('should return 200 for existing email (no enumeration)', async () => {
       const { email } = await createTestUser();
 
@@ -890,15 +899,22 @@ describe('Auth (e2e)', () => {
     });
 
     it('should return consistent message regardless of email existence', async () => {
-      const { email } = await createTestUser();
+      // Use fresh users/emails with no prior rate-limit records
+      const { email: realEmail } = await createTestUser();
+      const fakeEmail = uniqueEmail(); // non-existent
+
+      // Clear any rate-limit records for these emails
+      await prisma.rateLimitedRequest.deleteMany({
+        where: { email: { in: [realEmail, fakeEmail] } },
+      });
 
       const res1 = await request(app.getHttpServer())
         .post('/api/v1/auth/forgot-password')
-        .send({ email });
+        .send({ email: realEmail });
 
       const res2 = await request(app.getHttpServer())
         .post('/api/v1/auth/forgot-password')
-        .send({ email: 'nonexistent@test.local' });
+        .send({ email: fakeEmail });
 
       // Both should have the same structure
       expect(res1.status).toBe(200);
@@ -1616,6 +1632,11 @@ describe('Auth (e2e)', () => {
 
     it('forgot-password → verify-reset-token → reset-password → login', async () => {
       const { email, userId } = await createTestUser();
+
+      // Clear any prior rate-limit records for this email
+      await prisma.rateLimitedRequest.deleteMany({
+        where: { email },
+      });
 
       // Forgot password
       await request(app.getHttpServer())
