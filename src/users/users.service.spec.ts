@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -101,6 +103,14 @@ const mockAnalyticsService = {
   capture: jest.fn(),
 };
 
+const mockJwtService = {
+  sign: jest.fn().mockReturnValue('mock_token'),
+};
+
+const mockConfigService = {
+  get: jest.fn().mockReturnValue('test_secret'),
+};
+
 describe('UsersService', () => {
   let service: UsersService;
 
@@ -110,6 +120,8 @@ describe('UsersService', () => {
         UsersService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: AnalyticsService, useValue: mockAnalyticsService },
+        { provide: JwtService, useValue: mockJwtService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -398,6 +410,13 @@ describe('UsersService', () => {
         ...mockProfile,
         onboardingCompleted: false,
       });
+      // Mock for token reissue after onboarding
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'user-uuid',
+        email: 'test@example.com',
+        emailVerified: true,
+        roles: [{ role: 'LEARNER' }],
+      });
     });
 
     // -----------------------------------------------------------------------
@@ -480,13 +499,15 @@ describe('UsersService', () => {
         expect(mockPrismaService.$transaction).toHaveBeenCalledTimes(1);
       });
 
-      it('should return the updated UserProfile', async () => {
+      it('should return profile and new tokens', async () => {
         const expected = { ...mockProfile, onboardingCompleted: true };
         mockTx.userProfile.update.mockResolvedValue(expected);
 
         const result = await service.submitOnboarding('user-uuid', validDto);
 
-        expect(result).toEqual(expected);
+        expect(result.profile).toEqual(expected);
+        expect(result.accessToken).toBe('mock_token');
+        expect(result.refreshToken).toBe('mock_token');
       });
 
       it('should throw on transaction failure (rollback)', async () => {

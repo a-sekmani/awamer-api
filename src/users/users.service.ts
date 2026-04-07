@@ -1,8 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { ErrorCode } from '../common/error-codes.enum';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -17,12 +20,15 @@ import {
 import { User } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 12;
+const REFRESH_TOKEN_EXPIRY_DEFAULT = '7d';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly analyticsService: AnalyticsService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getMe(userId: string) {
@@ -245,7 +251,34 @@ export class UsersService {
     // 8. Analytics
     this.analyticsService.capture(userId, 'onboarding_completed');
 
-    return profile;
+    // 9. Reissue tokens with onboardingCompleted: true
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: true },
+    });
+
+    const roles = user!.roles.map((r) => r.role);
+    const payload: JwtPayload = {
+      sub: userId,
+      email: user!.email,
+      emailVerified: user!.emailVerified,
+      onboardingCompleted: true,
+      roles,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: REFRESH_TOKEN_EXPIRY_DEFAULT,
+    });
+
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: hashedRefreshToken },
+    });
+
+    return { profile, accessToken, refreshToken };
   }
 
   async getOnboardingStatus(userId: string) {

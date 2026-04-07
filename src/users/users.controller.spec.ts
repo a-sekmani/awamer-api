@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,6 +21,11 @@ const mockPrismaService = {
   },
 };
 
+const mockJwtService = {};
+const mockConfigService = {
+  get: jest.fn().mockReturnValue('development'),
+};
+
 describe('UsersController', () => {
   let controller: UsersController;
 
@@ -28,6 +35,8 @@ describe('UsersController', () => {
       providers: [
         { provide: UsersService, useValue: mockUsersService },
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: JwtService, useValue: mockJwtService },
+        { provide: ConfigService, useValue: mockConfigService },
         Reflector,
       ],
     }).compile();
@@ -102,15 +111,20 @@ describe('UsersController', () => {
     expect(result).toEqual({ data: null, message: 'Password updated' });
   });
 
-  it('POST /users/me/onboarding delegates to submitOnboarding and wraps response', async () => {
+  it('POST /users/me/onboarding delegates to submitOnboarding and sets cookies', async () => {
     const mockProfileData = { onboardingCompleted: true };
-    mockUsersService.submitOnboarding.mockResolvedValue(mockProfileData);
+    mockUsersService.submitOnboarding.mockResolvedValue({
+      profile: mockProfileData,
+      accessToken: 'at',
+      refreshToken: 'rt',
+    });
 
     const mockReq = { user: { userId: 'user-uuid' } } as any;
+    const mockRes = { cookie: jest.fn() } as any;
     const dto = {
       responses: [{ questionKey: 'q', answer: 'a', stepNumber: 1 }],
     };
-    const result = await controller.submitOnboarding(mockReq, dto as any);
+    const result = await controller.submitOnboarding(mockReq, dto as any, mockRes);
 
     expect(mockUsersService.submitOnboarding).toHaveBeenCalledWith(
       'user-uuid',
@@ -120,6 +134,12 @@ describe('UsersController', () => {
       data: { profile: mockProfileData },
       message: 'Success',
     });
+    expect(mockRes.cookie).toHaveBeenCalledTimes(2);
+    expect(mockRes.cookie).toHaveBeenCalledWith(
+      'access_token',
+      'at',
+      expect.objectContaining({ httpOnly: true }),
+    );
   });
 
   it('GET /users/me/onboarding delegates to getOnboardingStatus and wraps response', async () => {

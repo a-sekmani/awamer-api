@@ -7,10 +7,13 @@ import {
   Patch,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { Request } from 'express';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailVerifiedGuard } from '../common/guards/email-verified.guard';
 import { UsersService } from './users.service';
@@ -19,10 +22,21 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SubmitOnboardingDto } from './dto/onboarding.dto';
 
+const COOKIE_MAX_AGE_DEFAULT = 7 * 24 * 60 * 60 * 1000;
+
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  private readonly isProduction: boolean;
+
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {
+    this.isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+  }
 
   @Get('me/onboarding')
   @HttpCode(HttpStatus.OK)
@@ -76,9 +90,36 @@ export class UsersController {
   async submitOnboarding(
     @Req() req: Request,
     @Body() dto: SubmitOnboardingDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const { userId } = req.user as { userId: string };
-    const profile = await this.usersService.submitOnboarding(userId, dto);
+    const { profile, accessToken, refreshToken } =
+      await this.usersService.submitOnboarding(userId, dto);
+
+    this.setCookies(res, accessToken, refreshToken);
+
     return { data: { profile }, message: 'Success' };
+  }
+
+  private setCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+  ) {
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: this.isProduction,
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000,
+      path: '/',
+    });
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: this.isProduction,
+      sameSite: 'lax',
+      maxAge: COOKIE_MAX_AGE_DEFAULT,
+      path: '/api/v1/auth',
+    });
   }
 }

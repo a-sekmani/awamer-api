@@ -71,7 +71,10 @@ const mockPrismaService = {
     updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     create: jest.fn().mockResolvedValue(mockUser),
   },
-  userProfile: { create: jest.fn() },
+  userProfile: {
+    create: jest.fn(),
+    findUnique: jest.fn().mockResolvedValue({ onboardingCompleted: false }),
+  },
   userRole: {
     create: jest.fn(),
     findMany: jest.fn().mockResolvedValue([{ role: 'LEARNER' }]),
@@ -109,7 +112,7 @@ const mockJwtService = {
   sign: jest.fn().mockReturnValue('mock_token'),
   verify: jest
     .fn()
-    .mockReturnValue({ sub: 'user-uuid', email: 'test@example.com', emailVerified: false, roles: ['LEARNER'] }),
+    .mockReturnValue({ sub: 'user-uuid', email: 'test@example.com', emailVerified: false, onboardingCompleted: false, roles: ['LEARNER'] }),
 };
 
 const mockGeoipService = {

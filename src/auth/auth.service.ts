@@ -595,16 +595,23 @@ export class AuthService {
   }
 
   private async generateTokens(user: User, rememberMe = false) {
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId: user.id },
-      select: { role: true },
-    });
+    const [userRoles, profile] = await Promise.all([
+      this.prisma.userRole.findMany({
+        where: { userId: user.id },
+        select: { role: true },
+      }),
+      this.prisma.userProfile.findUnique({
+        where: { userId: user.id },
+        select: { onboardingCompleted: true },
+      }),
+    ]);
     const roles = userRoles.map((r) => r.role);
 
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       emailVerified: user.emailVerified,
+      onboardingCompleted: profile?.onboardingCompleted ?? false,
       roles,
     };
 
