@@ -36,7 +36,8 @@
       "Bash(.specify/scripts/bash/create-new-feature.sh Add strict validation to existing onboarding endpoints matching the final Figma design. Validate questionKeys, answers, stepNumbers, and interest limits. Prevent duplicate submissions.:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(cat /Users/ahmadsekmani/Desktop/Projects/awamer-api/src/health/*.controller.ts)"
+      "Bash(cat /Users/ahmadsekmani/Desktop/Projects/awamer-api/src/health/*.controller.ts)",
+      "Bash(ls /Users/ahmadsekmani/Desktop/Projects/awamer-api/README*)"
     ]
   }
 }
