@@ -1,9 +1,13 @@
 # Onboarding Feature — Backend Spec (awamer-api)
 
-> **Version:** 2.0 — Final
+> **Version:** 3.0 — Typed interests array
 > **Task:** KAN-22 (adjustments to existing implementation)
 > **Related:** KAN-24 (frontend), Figma page "Onboarding" (node 16:1035)
 > **Goal:** Add strict validation to existing onboarding endpoints to match the final Figma design. All changes and tests must be completed in a single pass.
+>
+> **⚠️ Breaking change in v3.0:** the `interests` response is now a typed
+> `items: string[]` field on the request body, **not** a JSON-stringified
+> array inside `answer`. The frontend and backend updated together.
 
 ---
 
@@ -48,8 +52,10 @@ The DTO accepts **any** `questionKey` and `answer` without validation. The servi
 | questionKey | `"interests"` |
 | stepNumber | `2` |
 | Selection | Multi-select (min 1, max 4) |
-| Answer format | JSON array string: `'["ai","programming"]'` |
+| Field name | `items` (typed `string[]` — **not** the `answer` field) |
+| Wire format | JSON array, e.g. `"items": ["ai", "programming"]` |
 | Valid values | `"programming"`, `"data_science"`, `"ai"`, `"mobile_dev"`, `"cybersecurity"`, `"cloud_devops"`, `"game_dev"`, `"vr_ar"`, `"blockchain"`, `"iot"`, `"design_ux"`, `"digital_marketing"`, `"project_management"` |
+| Storage | The service `JSON.stringify`s `items` once and writes the resulting string to both `UserProfile.interests` and `OnboardingResponse.answer`. The DB schema is unchanged. |
 
 ### Step 3: Goals
 | Field | Value |
@@ -136,11 +142,17 @@ Import `VALID_BACKGROUNDS`, `VALID_INTERESTS`, `VALID_GOALS`, `MIN_INTERESTS`, `
 {
   "responses": [
     { "questionKey": "background", "answer": "student", "stepNumber": 1 },
-    { "questionKey": "interests", "answer": "[\"ai\",\"programming\",\"cloud_devops\"]", "stepNumber": 2 },
+    { "questionKey": "interests", "items": ["ai", "programming", "cloud_devops"], "stepNumber": 2 },
     { "questionKey": "goals", "answer": "learn_new_skill", "stepNumber": 3 }
   ]
 }
 ```
+
+> **Migration note (v2.x → v3.0):** the `interests` entry no longer carries an
+> `answer` field. Clients on v2.x that send only `answer: "[\"ai\"]"` (and no
+> `items`) will get a `VALIDATION_FAILED` 400 because `items` is required when
+> `questionKey === "interests"`. The `answer` field is silently ignored on
+> interests entries; clients should stop sending it.
 
 **200 Success:**
 ```json
@@ -165,12 +177,14 @@ Import `VALID_BACKGROUNDS`, `VALID_INTERESTS`, `VALID_GOALS`, `MIN_INTERESTS`, `
 ```
 
 **400 Errors:**
-- Missing/invalid fields → class-validator error
-- `ONBOARDING_ALREADY_COMPLETED` → onboarding done before
-- Invalid background/goals value
-- Invalid interests JSON / count / values / duplicates
-- Missing required questionKey
-- Mismatched stepNumber
+- `VALIDATION_FAILED` → class-validator caught a structural problem (missing
+  fields, wrong types, interests `items` not array / out-of-range / unknown
+  value / duplicates / non-string element, etc.)
+- `ONBOARDING_ALREADY_COMPLETED` → onboarding already flipped to true (race
+  loss or repeat submission)
+- `INVALID_BACKGROUND` / `INVALID_GOALS` → answer not in the enum
+- Missing required questionKey / mismatched stepNumber → plain
+  `BadRequestException` from the service
 
 **401:** No JWT / expired
 **403:** Email not verified

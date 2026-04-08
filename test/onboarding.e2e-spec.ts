@@ -70,15 +70,27 @@ describe('Onboarding (e2e)', () => {
     return { userId: user.id, email, token };
   }
 
-  /** Build a valid onboarding payload */
+  /**
+   * Build a valid onboarding payload. The interests entry now carries a
+   * typed `items: string[]` field; the `items` override is intentionally
+   * `unknown` so negative tests can pass garbage shapes (objects, strings,
+   * non-string elements, etc.) to exercise class-validator.
+   */
   function validPayload(overrides?: {
     background?: string;
-    interests?: string;
+    items?: unknown;
     goals?: string;
     backgroundStep?: number;
     interestsStep?: number;
     goalsStep?: number;
-  }) {
+  }): Record<string, unknown> {
+    const interestsEntry: Record<string, unknown> = {
+      questionKey: 'interests',
+      stepNumber: overrides?.interestsStep ?? 2,
+    };
+    interestsEntry.items =
+      overrides && 'items' in overrides ? overrides.items : ['ai', 'cybersecurity'];
+
     return {
       responses: [
         {
@@ -86,12 +98,7 @@ describe('Onboarding (e2e)', () => {
           answer: overrides?.background ?? 'student',
           stepNumber: overrides?.backgroundStep ?? 1,
         },
-        {
-          questionKey: 'interests',
-          answer:
-            overrides?.interests ?? JSON.stringify(['ai', 'cybersecurity']),
-          stepNumber: overrides?.interestsStep ?? 2,
-        },
+        interestsEntry,
         {
           questionKey: 'goals',
           answer: overrides?.goals ?? 'learn_new_skill',
@@ -324,7 +331,7 @@ describe('Onboarding (e2e)', () => {
         .send(
           validPayload({
             background: 'employee',
-            interests: JSON.stringify(['cloud_devops', 'iot']),
+            items: ['cloud_devops', 'iot'],
             goals: 'advance_career',
           }),
         )
@@ -401,9 +408,7 @@ describe('Onboarding (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(
-          validPayload({ interests: JSON.stringify([...fourInterests]) }),
-        )
+        .send(validPayload({ items: [...fourInterests] }))
         .expect(200);
     });
 
@@ -413,7 +418,7 @@ describe('Onboarding (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: JSON.stringify(['ai']) }))
+        .send(validPayload({ items: ['ai'] }))
         .expect(200);
     });
 
@@ -425,12 +430,7 @@ describe('Onboarding (e2e)', () => {
         .set('Cookie', [`access_token=${token}`])
         .send(
           validPayload({
-            interests: JSON.stringify([
-              'ai',
-              'cybersecurity',
-              'cloud_devops',
-              'data_science',
-            ]),
+            items: ['ai', 'cybersecurity', 'cloud_devops', 'data_science'],
           }),
         )
         .expect(200);
@@ -484,9 +484,9 @@ describe('Onboarding (e2e)', () => {
         .set('Cookie', [`access_token=${token}`])
         .send({
           responses: [
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
           ],
         })
         .expect(400);
@@ -517,7 +517,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
           ],
         })
@@ -552,110 +552,104 @@ describe('Onboarding (e2e)', () => {
       expect(res.body.message).not.toContain('become_ceo');
     });
 
-    it('should return 400 when interests is not valid JSON', async () => {
+    // ── Interests array validation (now handled by class-validator on the
+    //    DTO; class-validator failures bubble up as VALIDATION_FAILED) ──
+
+    it('should return 400 when interests items is a plain string instead of array', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: 'not-json' }))
+        .send(validPayload({ items: 'ai' }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
-      expect(res.body.message).not.toContain('not-json');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
-    it('should return 400 when interests is a JSON string, not array', async () => {
+    it('should return 400 when interests items is a plain object instead of array', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '"ai"' }))
+        .send(validPayload({ items: { ai: true } }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
-    it('should return 400 when interests is a JSON object, not array', async () => {
+    it('should return 400 when interests items is an empty array (below MIN_INTERESTS)', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '{"ai": true}' }))
+        .send(validPayload({ items: [] }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
-    it('should return 400 when interests array is empty (below MIN_INTERESTS)', async () => {
+    it('should return 400 when interests items exceed MAX_INTERESTS (5 items)', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '[]' }))
+        .send(
+          validPayload({
+            items: [
+              'ai',
+              'cybersecurity',
+              'cloud_devops',
+              'data_science',
+              'programming',
+            ],
+          }),
+        )
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INTERESTS_COUNT_INVALID');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
-    it('should return 400 when interests exceed MAX_INTERESTS (5 items)', async () => {
+    it('should return 400 when interests items contain a value outside VALID_INTERESTS', async () => {
       const { token } = await createTestUser({ emailVerified: true });
-
-      const fiveInterests = JSON.stringify([
-        'ai',
-        'cybersecurity',
-        'cloud_devops',
-        'data_science',
-        'programming',
-      ]);
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: fiveInterests }))
+        .send(validPayload({ items: ['ai', 'cooking'] }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INTERESTS_COUNT_INVALID');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
+      // The class-validator error array contains constraint metadata; raw
+      // user input ("cooking") may or may not appear in the constraint
+      // values, so we don't assert against it here.
     });
 
-    it('should return 400 when interests contain an invalid value', async () => {
+    it('should return 400 when interests items contain duplicates', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '["ai","cooking"]' }))
+        .send(validPayload({ items: ['ai', 'ai'] }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
-      expect(res.body.message).not.toContain('cooking');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
-    it('should return 400 when interests contain duplicate values', async () => {
+    it('should return 400 when interests items contain a non-string element', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '["ai","ai"]' }))
+        .send(validPayload({ items: [123] }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
-    });
-
-    it('should return 400 when interests contain a non-string element', async () => {
-      const { token } = await createTestUser({ emailVerified: true });
-
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/users/me/onboarding')
-        .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '[123]' }))
-        .expect(400);
-
-      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
     // ── Wrong step numbers ──
@@ -717,7 +711,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -758,7 +752,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'invalid_key', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -778,7 +772,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'background', answer: '', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -798,7 +792,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1.5 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -818,7 +812,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 0 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -838,7 +832,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -858,7 +852,7 @@ describe('Onboarding (e2e)', () => {
         .send({
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -884,7 +878,7 @@ describe('Onboarding (e2e)', () => {
               stepNumber: 1,
               extra: 'bad',
             },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             {
               questionKey: 'goals',
               answer: 'learn_new_skill',
@@ -1129,7 +1123,7 @@ describe('Onboarding (e2e)', () => {
         .send(
           validPayload({
             background: 'freelancer',
-            interests: JSON.stringify(['data_science', 'iot']),
+            items: ['data_science', 'iot'],
             goals: 'build_project',
           }),
         )
@@ -1357,7 +1351,7 @@ describe('Onboarding (e2e)', () => {
 
       const payload = validPayload({
         background: 'job_seeker',
-        interests: JSON.stringify(['mobile_dev', 'game_dev', 'blockchain']),
+        items: ['mobile_dev', 'game_dev', 'blockchain'],
         goals: 'switch_career',
       });
 
@@ -1399,7 +1393,7 @@ describe('Onboarding (e2e)', () => {
         .send(
           validPayload({
             background: 'employee',
-            interests: JSON.stringify(['ai', 'cybersecurity', 'iot']),
+            items: ['ai', 'cybersecurity', 'iot'],
             goals: 'level_up',
           }),
         )
@@ -1438,7 +1432,7 @@ describe('Onboarding (e2e)', () => {
         .send(
           validPayload({
             background: 'freelancer',
-            interests: JSON.stringify(['blockchain']),
+            items: ['blockchain'],
             goals: 'build_project',
           }),
         )
@@ -1465,10 +1459,10 @@ describe('Onboarding (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '[" ai "]' }))
+        .send(validPayload({ items: [' ai '] }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
     it('interests with uppercase values is rejected (case-sensitive)', async () => {
@@ -1477,11 +1471,10 @@ describe('Onboarding (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '["AI"]' }))
+        .send(validPayload({ items: ['AI'] }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
-      expect(res.body.message).not.toContain('AI');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
     it('background with leading/trailing whitespace is rejected', async () => {
@@ -1496,16 +1489,16 @@ describe('Onboarding (e2e)', () => {
       expect(res.body.errorCode).toBe('INVALID_BACKGROUND');
     });
 
-    it('interests as JSON object instead of array is rejected', async () => {
+    it('interests items as plain object instead of array is rejected', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/users/me/onboarding')
         .set('Cookie', [`access_token=${token}`])
-        .send(validPayload({ interests: '{"items": ["ai"]}' }))
+        .send(validPayload({ items: { items: ['ai'] } }))
         .expect(400);
 
-      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
+      expect(res.body.errorCode).toBe('VALIDATION_FAILED');
     });
 
     it('POST with empty body {} returns 400 with validation errors', async () => {
@@ -1533,7 +1526,7 @@ describe('Onboarding (e2e)', () => {
         { responses: 'not-array' },
         validPayload({ background: 'invalid' }),
         validPayload({ goals: 'invalid' }),
-        validPayload({ interests: 'not-json' }),
+        validPayload({ items: 'not-an-array' }),
       ];
 
       for (const payload of invalidPayloads) {

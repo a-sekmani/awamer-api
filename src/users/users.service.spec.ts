@@ -406,7 +406,7 @@ describe('UsersService', () => {
     const validDto = {
       responses: [
         { questionKey: 'background', answer: 'student', stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai","programming"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai', 'programming'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     };
@@ -478,7 +478,7 @@ describe('UsersService', () => {
         );
       });
 
-      it('should store interests JSON array string in UserProfile.interests', async () => {
+      it('should JSON-serialize interests items into UserProfile.interests', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
         expect(mockTx.userProfile.updateMany).toHaveBeenCalledWith(
@@ -486,6 +486,16 @@ describe('UsersService', () => {
             data: expect.objectContaining({ interests: '["ai","programming"]' }),
           }),
         );
+      });
+
+      it('should JSON-serialize interests items into the OnboardingResponse.answer column', async () => {
+        await service.submitOnboarding('user-uuid', validDto);
+
+        const callData = mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
+        const interestsRow = callData.find(
+          (r: { questionKey: string }) => r.questionKey === 'interests',
+        );
+        expect(interestsRow.answer).toBe('["ai","programming"]');
       });
 
       it('should set onboardingCompleted to true', async () => {
@@ -605,9 +615,9 @@ describe('UsersService', () => {
       it('should throw if "background" questionKey is missing', async () => {
         const dto = {
           responses: [
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
           ],
         };
 
@@ -630,7 +640,7 @@ describe('UsersService', () => {
         const dto = {
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
           ],
         };
@@ -642,7 +652,7 @@ describe('UsersService', () => {
         const dto = {
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 2 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
           ],
         };
@@ -666,7 +676,7 @@ describe('UsersService', () => {
         const dto = {
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 1 },
           ],
         };
@@ -695,7 +705,7 @@ describe('UsersService', () => {
           {
             responses: [
               { questionKey: 'background', answer: 'astronaut', stepNumber: 1 },
-              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
               { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
             ],
           },
@@ -708,7 +718,7 @@ describe('UsersService', () => {
           {
             responses: [
               { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
               { questionKey: 'goals', answer: 'become_famous', stepNumber: 3 },
             ],
           },
@@ -716,122 +726,11 @@ describe('UsersService', () => {
         );
       });
 
-      it('should throw INTERESTS_PARSE_ERROR if interests answer is not valid JSON', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: 'not-json', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INTERESTS_PARSE_ERROR,
-        );
-      });
-
-      it('should throw INTERESTS_PARSE_ERROR if interests answer is not a JSON array (e.g., JSON object)', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '{"key":"value"}', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INTERESTS_PARSE_ERROR,
-        );
-      });
-
-      it('should throw INTERESTS_COUNT_INVALID if interests answer is an empty array', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '[]', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INTERESTS_COUNT_INVALID,
-        );
-      });
-
-      it('should throw INTERESTS_COUNT_INVALID if interests has more than 4 items', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '["ai","programming","cybersecurity","cloud_devops","blockchain"]', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INTERESTS_COUNT_INVALID,
-        );
-      });
-
-      it('should throw INVALID_INTERESTS if interests contains a value not in VALID_INTERESTS', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '["ai","cooking"]', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INVALID_INTERESTS,
-        );
-      });
-
-      it('should throw INVALID_INTERESTS if interests contains duplicate values', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '["ai","ai"]', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INVALID_INTERESTS,
-        );
-      });
-
-      it('should throw INVALID_INTERESTS if interests contains a number instead of string', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '[1, 2]', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INVALID_INTERESTS,
-        );
-      });
-
-      it('should throw INVALID_INTERESTS if interests contains null values', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '[null, "ai"]', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INVALID_INTERESTS,
-        );
-      });
-
-      it('should throw INTERESTS_PARSE_ERROR if interests is a JSON string (not array)', async () => {
-        await expectErrorCode(
-          {
-            responses: [
-              { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '"ai"', stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-            ],
-          },
-          ErrorCode.INTERESTS_PARSE_ERROR,
-        );
-      });
+      // NOTE: Per-item interests validation (parse, array shape, length,
+      // each-value, uniqueness) is now enforced by class-validator on the
+      // SubmitOnboardingDto. Tests for that live in users.dto.spec.ts. The
+      // service only enforces background/goals enum membership and the
+      // ONBOARDING_ALREADY_COMPLETED race-loss path below.
 
       it('should throw ONBOARDING_ALREADY_COMPLETED with correct errorCode when count === 0', async () => {
         mockTx.userProfile.updateMany.mockResolvedValue({ count: 0 });
@@ -876,19 +775,7 @@ describe('UsersService', () => {
         const dto = {
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
-      });
-
-      it('should accept interests with exactly 4 items (maximum)', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai","programming","cybersecurity","cloud_devops"]', stepNumber: 2 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
             { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
           ],
         };
@@ -905,7 +792,7 @@ describe('UsersService', () => {
           const dto = {
             responses: [
               { questionKey: 'background', answer: bg, stepNumber: 1 },
-              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
               { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
             ],
           };
@@ -923,7 +810,7 @@ describe('UsersService', () => {
           const dto = {
             responses: [
               { questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
               { questionKey: 'goals', answer: goal, stepNumber: 3 },
             ],
           };
@@ -938,7 +825,23 @@ describe('UsersService', () => {
         const dto = {
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: JSON.stringify(allInterests), stepNumber: 2 },
+            { questionKey: 'interests', items: allInterests, stepNumber: 2 },
+            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          ],
+        };
+
+        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+      });
+
+      it('should accept interests with exactly 4 items (maximum)', async () => {
+        const dto = {
+          responses: [
+            { questionKey: 'background', answer: 'student', stepNumber: 1 },
+            {
+              questionKey: 'interests',
+              items: ['ai', 'programming', 'cybersecurity', 'cloud_devops'],
+              stepNumber: 2,
+            },
             { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
           ],
         };

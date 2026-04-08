@@ -74,7 +74,7 @@ describe('SubmitOnboardingDto', () => {
   const validPayload = {
     responses: [
       { questionKey: 'background', answer: 'student', stepNumber: 1 },
-      { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+      { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
       { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
     ],
   };
@@ -116,7 +116,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'favorite_color', answer: 'blue', stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -128,7 +128,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', answer: 'student', stepNumber: 0 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -140,7 +140,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', answer: 'student', stepNumber: 4 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -152,7 +152,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', answer: 'student', stepNumber: 'abc' },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -164,7 +164,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', answer: 'student', stepNumber: 1.5 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -176,7 +176,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { answer: 'student', stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -188,7 +188,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -200,7 +200,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', answer: 'student' },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -212,7 +212,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: '', answer: 'student', stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -224,7 +224,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', answer: '', stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -232,11 +232,117 @@ describe('SubmitOnboardingDto', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('should reject answer exceeding 200 characters', async () => {
+  it('should reject answer exceeding 50 characters', async () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
-        { questionKey: 'background', answer: 'a'.repeat(201), stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'background', answer: 'a'.repeat(51), stepNumber: 1 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  // ── New: items[] validation for the interests question ──
+
+  it('should accept interests with 4 unique items (max)', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        {
+          questionKey: 'interests',
+          items: ['ai', 'cybersecurity', 'cloud_devops', 'programming'],
+          stepNumber: 2,
+        },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('should reject interests items as empty array', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', items: [], stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject interests items with more than 4 entries', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        {
+          questionKey: 'interests',
+          items: ['ai', 'cybersecurity', 'cloud_devops', 'programming', 'iot'],
+          stepNumber: 2,
+        },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject interests items containing a value outside VALID_INTERESTS', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', items: ['ai', 'cooking'], stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject interests items with duplicates', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', items: ['ai', 'ai'], stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject interests items containing a non-string element', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', items: [123], stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject interests when items is not an array (string)', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', items: 'ai', stepNumber: 2 },
+        { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+      ],
+    });
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should reject interests when items is missing entirely', async () => {
+    const dto = plainToInstance(SubmitOnboardingDto, {
+      responses: [
+        { questionKey: 'background', answer: 'student', stepNumber: 1 },
+        { questionKey: 'interests', stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     });
@@ -262,7 +368,7 @@ describe('SubmitOnboardingDto', () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
         { questionKey: 'background', answer: 'student', stepNumber: 1 },
-        { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+        { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
       background: 'Student',
@@ -297,7 +403,7 @@ describe('SubmitOnboardingDto', () => {
       const dto = plainToInstance(SubmitOnboardingDto, {
         responses: [
           { questionKey: 'background', answer: 'student', stepNumber: 1 },
-          { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+          { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
           { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
         ],
       });

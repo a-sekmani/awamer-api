@@ -12,10 +12,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import {
   SubmitOnboardingDto,
   VALID_BACKGROUNDS,
-  VALID_INTERESTS,
   VALID_GOALS,
-  MIN_INTERESTS,
-  MAX_INTERESTS,
 } from './dto/onboarding.dto';
 import { User } from '@prisma/client';
 
@@ -146,10 +143,12 @@ export class UsersService {
       throw new BadRequestException('goals must have stepNumber 3');
     }
 
-    // 4. Validate background answer
+    // 4. Background and goals must match the enum. (The DTO already enforces
+    //    that `answer` is a non-empty string ≤50 chars when questionKey is
+    //    background/goals; we just check the enum membership here.)
     if (
       !(VALID_BACKGROUNDS as readonly string[]).includes(
-        backgroundResponse.answer,
+        backgroundResponse.answer ?? '',
       )
     ) {
       throw new BadRequestException({
@@ -159,9 +158,8 @@ export class UsersService {
       });
     }
 
-    // 5. Validate goals answer
     if (
-      !(VALID_GOALS as readonly string[]).includes(goalsResponse.answer)
+      !(VALID_GOALS as readonly string[]).includes(goalsResponse.answer ?? '')
     ) {
       throw new BadRequestException({
         message: 'Invalid goals value',
@@ -170,60 +168,12 @@ export class UsersService {
       });
     }
 
-    // 6. Validate interests answer
-    let interestsArray: unknown;
-    try {
-      interestsArray = JSON.parse(interestsResponse.answer);
-    } catch {
-      throw new BadRequestException({
-        message: 'interests answer must be a valid JSON array',
-        errorCode: ErrorCode.INTERESTS_PARSE_ERROR,
-        field: 'interests',
-      });
-    }
+    // 5. Interests come in as a typed array via the DTO. class-validator has
+    //    already enforced length 1-4, uniqueness, string-each, and enum
+    //    membership, so the service just consumes the field.
+    const interestsItems = interestsResponse.items ?? [];
 
-    if (!Array.isArray(interestsArray)) {
-      throw new BadRequestException({
-        message: 'interests answer must be a JSON array',
-        errorCode: ErrorCode.INTERESTS_PARSE_ERROR,
-        field: 'interests',
-      });
-    }
-
-    if (
-      interestsArray.length < MIN_INTERESTS ||
-      interestsArray.length > MAX_INTERESTS
-    ) {
-      throw new BadRequestException({
-        message: `interests must contain between ${MIN_INTERESTS} and ${MAX_INTERESTS} items`,
-        errorCode: ErrorCode.INTERESTS_COUNT_INVALID,
-        field: 'interests',
-      });
-    }
-
-    for (const item of interestsArray) {
-      if (
-        typeof item !== 'string' ||
-        !(VALID_INTERESTS as readonly string[]).includes(item)
-      ) {
-        throw new BadRequestException({
-          message: 'Invalid interest value',
-          errorCode: ErrorCode.INVALID_INTERESTS,
-          field: 'interests',
-        });
-      }
-    }
-
-    const uniqueInterests = new Set(interestsArray);
-    if (uniqueInterests.size !== interestsArray.length) {
-      throw new BadRequestException({
-        message: 'interests must not contain duplicate values',
-        errorCode: ErrorCode.INVALID_INTERESTS,
-        field: 'interests',
-      });
-    }
-
-    // 7. Pre-fetch user and pre-sign tokens BEFORE the transaction so the
+    // 6. Pre-fetch user and pre-sign tokens BEFORE the transaction so the
     //    refresh-token rotation can be folded into the same atomic write.
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -252,13 +202,17 @@ export class UsersService {
     //    only one concurrent request will see count > 0 and proceed; the
     //    loser sees count === 0 and rolls back without writing anything,
     //    without firing analytics, and without rotating refresh tokens.
+    // The interests array is serialized once here so the same string ends
+    // up in both UserProfile.interests and OnboardingResponse.answer.
+    const interestsSerialized = JSON.stringify(interestsItems);
+
     const profile = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.userProfile.updateMany({
         where: { userId, onboardingCompleted: false },
         data: {
           background: backgroundResponse.answer,
           goals: goalsResponse.answer,
-          interests: interestsResponse.answer,
+          interests: interestsSerialized,
           onboardingCompleted: true,
         },
       });
@@ -278,7 +232,11 @@ export class UsersService {
         data: dto.responses.map((r) => ({
           userId,
           questionKey: r.questionKey,
-          answer: r.answer,
+          // background/goals → r.answer; interests → JSON-stringified items
+          answer:
+            r.questionKey === 'interests'
+              ? interestsSerialized
+              : (r.answer as string),
           stepNumber: r.stepNumber,
         })),
       });

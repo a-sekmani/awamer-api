@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsIn,
   IsInt,
@@ -10,6 +11,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -53,16 +55,40 @@ export const VALID_QUESTION_KEYS = [
 export const MAX_INTERESTS = 4;
 export const MIN_INTERESTS = 1;
 
+/**
+ * A single onboarding response. The shape is conditional on `questionKey`:
+ *
+ *   - `background` / `goals` → carries `answer: string` (an enum value).
+ *   - `interests`            → carries `items: string[]` (1-4 unique enum
+ *     values).
+ *
+ * Both fields are declared on the same class so the global ValidationPipe
+ * (whitelist + forbidNonWhitelisted) lets each shape through. `@ValidateIf`
+ * scopes each rule to the relevant question key, so the service no longer
+ * parses JSON or hand-checks bounds.
+ */
 export class OnboardingResponseItemDto {
   @IsString()
   @IsNotEmpty()
   @IsIn([...VALID_QUESTION_KEYS])
   questionKey!: string;
 
+  // answer is required for background/goals, ignored for interests.
+  @ValidateIf((o) => o.questionKey !== 'interests')
   @IsString()
   @IsNotEmpty()
-  @MaxLength(200)
-  answer!: string;
+  @MaxLength(50)
+  answer?: string;
+
+  // items is required for interests, ignored for background/goals.
+  @ValidateIf((o) => o.questionKey === 'interests')
+  @IsArray()
+  @ArrayMinSize(MIN_INTERESTS)
+  @ArrayMaxSize(MAX_INTERESTS)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsIn([...VALID_INTERESTS], { each: true })
+  items?: string[];
 
   @IsInt()
   @Min(1)
