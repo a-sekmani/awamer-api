@@ -111,18 +111,7 @@ export class UsersService {
   }
 
   async submitOnboarding(userId: string, dto: SubmitOnboardingDto) {
-    // 1. Check if already completed
-    const existingProfile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-    });
-    if (existingProfile?.onboardingCompleted) {
-      throw new BadRequestException({
-        message: 'Onboarding already completed',
-        errorCode: ErrorCode.ONBOARDING_ALREADY_COMPLETED,
-      });
-    }
-
-    // 2. Validate all 3 required keys are present
+    // 1. Validate all 3 required keys are present
     const keys = dto.responses.map((r) => r.questionKey);
     for (const required of ['background', 'interests', 'goals'] as const) {
       if (!keys.includes(required)) {
@@ -234,8 +223,53 @@ export class UsersService {
       });
     }
 
-    // 7. Transaction: delete old + create new + update profile
+    // 7. Pre-fetch user and pre-sign tokens BEFORE the transaction so the
+    //    refresh-token rotation can be folded into the same atomic write.
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: true },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const roles = user.roles.map((r) => r.role);
+    const payload: JwtPayload = {
+      sub: userId,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      onboardingCompleted: true,
+      roles,
+    };
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: REFRESH_TOKEN_EXPIRY_DEFAULT,
+    });
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
+
+    // 8. Atomic transaction. The conditional updateMany acts as the lock:
+    //    only one concurrent request will see count > 0 and proceed; the
+    //    loser sees count === 0 and rolls back without writing anything,
+    //    without firing analytics, and without rotating refresh tokens.
     const profile = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.userProfile.updateMany({
+        where: { userId, onboardingCompleted: false },
+        data: {
+          background: backgroundResponse.answer,
+          goals: goalsResponse.answer,
+          interests: interestsResponse.answer,
+          onboardingCompleted: true,
+        },
+      });
+
+      if (updated.count === 0) {
+        throw new BadRequestException({
+          message: 'Onboarding already completed',
+          errorCode: ErrorCode.ONBOARDING_ALREADY_COMPLETED,
+        });
+      }
+
       await tx.onboardingResponse.deleteMany({
         where: { userId },
       });
@@ -249,48 +283,20 @@ export class UsersService {
         })),
       });
 
-      const updatedProfile = await tx.userProfile.update({
-        where: { userId },
-        data: {
-          background: backgroundResponse.answer,
-          goals: goalsResponse.answer,
-          interests: interestsResponse.answer,
-          onboardingCompleted: true,
-        },
+      // Fold refresh-token rotation into the same transaction so the DB
+      // hash and the cookie that the client receives are guaranteed to
+      // belong to the same successful onboarding submission.
+      await tx.user.update({
+        where: { id: userId },
+        data: { refreshToken: hashedRefreshToken },
       });
 
-      return updatedProfile;
+      return tx.userProfile.findUnique({ where: { userId } });
     });
 
-    // 8. Analytics
+    // 9. Analytics — only fires if the transaction committed (i.e. this
+    //    request was the winner of any concurrent race).
     this.analyticsService.capture(userId, 'onboarding_completed');
-
-    // 9. Reissue tokens with onboardingCompleted: true
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { roles: true },
-    });
-
-    const roles = user!.roles.map((r) => r.role);
-    const payload: JwtPayload = {
-      sub: userId,
-      email: user!.email,
-      emailVerified: user!.emailVerified,
-      onboardingCompleted: true,
-      roles,
-    };
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: REFRESH_TOKEN_EXPIRY_DEFAULT,
-    });
-
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { refreshToken: hashedRefreshToken },
-    });
 
     return { profile, accessToken, refreshToken };
   }

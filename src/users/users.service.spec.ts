@@ -81,7 +81,13 @@ const mockTx = {
     createMany: jest.fn().mockResolvedValue({ count: 3 }),
     deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
   },
-  userProfile: { update: jest.fn().mockResolvedValue({ ...mockProfile, onboardingCompleted: true }) },
+  userProfile: {
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findUnique: jest.fn().mockResolvedValue({ ...mockProfile, onboardingCompleted: true }),
+  },
+  user: {
+    update: jest.fn().mockResolvedValue({}),
+  },
 };
 
 const mockPrismaService = {
@@ -406,17 +412,21 @@ describe('UsersService', () => {
     };
 
     beforeEach(() => {
-      mockPrismaService.userProfile.findUnique.mockResolvedValue({
-        ...mockProfile,
-        onboardingCompleted: false,
-      });
-      // Mock for token reissue after onboarding
+      // user pre-fetch for token signing
       mockPrismaService.user.findUnique.mockResolvedValue({
         id: 'user-uuid',
         email: 'test@example.com',
         emailVerified: true,
         roles: [{ role: 'LEARNER' }],
       });
+      // Default tx mocks: race winner (count === 1)
+      mockTx.userProfile.updateMany.mockResolvedValue({ count: 1 });
+      mockTx.userProfile.findUnique.mockResolvedValue({
+        ...mockProfile,
+        onboardingCompleted: true,
+      });
+      mockTx.user.update.mockResolvedValue({});
+      mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
     });
 
     // -----------------------------------------------------------------------
@@ -450,8 +460,9 @@ describe('UsersService', () => {
       it('should store background value in UserProfile.background', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+        expect(mockTx.userProfile.updateMany).toHaveBeenCalledWith(
           expect.objectContaining({
+            where: { userId: 'user-uuid', onboardingCompleted: false },
             data: expect.objectContaining({ background: 'student' }),
           }),
         );
@@ -460,7 +471,7 @@ describe('UsersService', () => {
       it('should store goals value in UserProfile.goals', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+        expect(mockTx.userProfile.updateMany).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({ goals: 'learn_new_skill' }),
           }),
@@ -470,7 +481,7 @@ describe('UsersService', () => {
       it('should store interests JSON array string in UserProfile.interests', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+        expect(mockTx.userProfile.updateMany).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({ interests: '["ai","programming"]' }),
           }),
@@ -480,7 +491,7 @@ describe('UsersService', () => {
       it('should set onboardingCompleted to true', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        expect(mockTx.userProfile.update).toHaveBeenCalledWith(
+        expect(mockTx.userProfile.updateMany).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({ onboardingCompleted: true }),
           }),
@@ -501,7 +512,7 @@ describe('UsersService', () => {
 
       it('should return profile and new tokens', async () => {
         const expected = { ...mockProfile, onboardingCompleted: true };
-        mockTx.userProfile.update.mockResolvedValue(expected);
+        mockTx.userProfile.findUnique.mockResolvedValue(expected);
 
         const result = await service.submitOnboarding('user-uuid', validDto);
 
@@ -521,19 +532,8 @@ describe('UsersService', () => {
     // Token reissue (5 tests)
     // -----------------------------------------------------------------------
     describe('token reissue', () => {
-      beforeEach(() => {
-        mockPrismaService.userProfile.findUnique.mockResolvedValue({
-          ...mockProfile,
-          onboardingCompleted: false,
-        });
-        mockPrismaService.user.findUnique.mockResolvedValue({
-          id: 'user-uuid',
-          email: 'test@example.com',
-          emailVerified: true,
-          roles: [{ role: 'LEARNER' }],
-        });
-        mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
-      });
+      // (Outer beforeEach already wires up user.findUnique, mockTx defaults,
+      // and $transaction.)
 
       it('should issue new access token with onboardingCompleted: true', async () => {
         const result = await service.submitOnboarding('user-uuid', validDto);
@@ -562,11 +562,13 @@ describe('UsersService', () => {
         );
       });
 
-      it('should store hashed refresh token in DB', async () => {
+      it('should store hashed refresh token via tx.user.update (inside the transaction)', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        // user.update is called to store hashed refresh token
-        expect(mockPrismaService.user.update).toHaveBeenCalledWith(
+        // The refresh-token rotation must run via the transaction client,
+        // not the top-level prisma client, so it commits atomically with
+        // the onboardingCompleted flag.
+        expect(mockTx.user.update).toHaveBeenCalledWith(
           expect.objectContaining({
             where: { id: 'user-uuid' },
             data: expect.objectContaining({
@@ -574,6 +576,7 @@ describe('UsersService', () => {
             }),
           }),
         );
+        expect(mockPrismaService.user.update).not.toHaveBeenCalled();
       });
 
       it('should include correct roles in reissued token payload', async () => {
@@ -593,11 +596,8 @@ describe('UsersService', () => {
     // Validation (15 tests)
     // -----------------------------------------------------------------------
     describe('validation', () => {
-      it('should throw ONBOARDING_ALREADY_COMPLETED if profile.onboardingCompleted is true', async () => {
-        mockPrismaService.userProfile.findUnique.mockResolvedValue({
-          ...mockProfile,
-          onboardingCompleted: true,
-        });
+      it('should throw ONBOARDING_ALREADY_COMPLETED when the conditional updateMany matches no rows', async () => {
+        mockTx.userProfile.updateMany.mockResolvedValue({ count: 0 });
 
         await expect(service.submitOnboarding('user-uuid', validDto)).rejects.toThrow('Onboarding already completed');
       });
@@ -833,11 +833,8 @@ describe('UsersService', () => {
         );
       });
 
-      it('should throw ONBOARDING_ALREADY_COMPLETED with correct errorCode', async () => {
-        mockPrismaService.userProfile.findUnique.mockResolvedValue({
-          ...mockProfile,
-          onboardingCompleted: true,
-        });
+      it('should throw ONBOARDING_ALREADY_COMPLETED with correct errorCode when count === 0', async () => {
+        mockTx.userProfile.updateMany.mockResolvedValue({ count: 0 });
 
         try {
           await service.submitOnboarding('user-uuid', validDto);
@@ -847,6 +844,19 @@ describe('UsersService', () => {
           const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
           expect(response.errorCode).toBe('ONBOARDING_ALREADY_COMPLETED');
         }
+      });
+
+      it('should NOT fire analytics, NOT touch refresh token, and NOT write responses when count === 0', async () => {
+        mockTx.userProfile.updateMany.mockResolvedValue({ count: 0 });
+
+        await expect(
+          service.submitOnboarding('user-uuid', validDto),
+        ).rejects.toThrow('Onboarding already completed');
+
+        expect(mockAnalyticsService.capture).not.toHaveBeenCalled();
+        expect(mockTx.user.update).not.toHaveBeenCalled();
+        expect(mockTx.onboardingResponse.deleteMany).not.toHaveBeenCalled();
+        expect(mockTx.onboardingResponse.createMany).not.toHaveBeenCalled();
       });
     });
 

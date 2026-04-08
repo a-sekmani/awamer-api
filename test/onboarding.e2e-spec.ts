@@ -1565,9 +1565,10 @@ describe('Onboarding (e2e)', () => {
     it('internal DB error returns 500 with generic message (no leak)', async () => {
       const { token } = await createTestUser({ emailVerified: true });
 
-      // Simulate a DB connection failure on the initial profile lookup
+      // Simulate a DB connection failure on the user pre-fetch (used to
+      // build the JWT payload for token rotation)
       jest
-        .spyOn(prisma.userProfile, 'findUnique')
+        .spyOn(prisma.user, 'findUnique')
         .mockRejectedValueOnce(new Error('FATAL: connection refused'));
 
       const res = await request(app.getHttpServer())
@@ -1579,6 +1580,73 @@ describe('Onboarding (e2e)', () => {
       // Should not leak internal error details
       expect(res.body.message).not.toContain('connection refused');
       expect(res.body.message).not.toContain('FATAL');
+    });
+  });
+
+  // ─── Group 8: Concurrency / TOCTOU race ──────────────────────────
+
+  describe('Concurrency', () => {
+    it('two parallel POSTs with the same JWT — exactly one wins, the other gets ONBOARDING_ALREADY_COMPLETED', async () => {
+      const { userId, token } = await createTestUser({ emailVerified: true });
+
+      const captureSpy = jest.spyOn(analyticsService, 'capture');
+
+      // Fire two parallel onboarding submissions with the same valid payload
+      const [resA, resB] = await Promise.all([
+        request(app.getHttpServer())
+          .post('/api/v1/users/me/onboarding')
+          .set('Cookie', [`access_token=${token}`])
+          .send(validPayload()),
+        request(app.getHttpServer())
+          .post('/api/v1/users/me/onboarding')
+          .set('Cookie', [`access_token=${token}`])
+          .send(validPayload()),
+      ]);
+
+      const statuses = [resA.status, resB.status].sort();
+      expect(statuses).toEqual([200, 400]);
+
+      const winner = resA.status === 200 ? resA : resB;
+      const loser = resA.status === 400 ? resA : resB;
+
+      // Loser must report the structured ALREADY_COMPLETED error
+      expect(loser.body.errorCode).toBe('ONBOARDING_ALREADY_COMPLETED');
+
+      // DB must contain exactly 3 OnboardingResponse rows (not 6)
+      const records = await prisma.onboardingResponse.findMany({
+        where: { userId },
+      });
+      expect(records).toHaveLength(3);
+
+      // UserProfile is flipped to onboardingCompleted=true exactly once
+      const profile = await prisma.userProfile.findUnique({
+        where: { userId },
+      });
+      expect(profile!.onboardingCompleted).toBe(true);
+
+      // Analytics fired exactly once — only the winner triggers it
+      const onboardingCalls = captureSpy.mock.calls.filter(
+        (call) => call[1] === 'onboarding_completed' && call[0] === userId,
+      );
+      expect(onboardingCalls).toHaveLength(1);
+
+      // Only the winner should have a fresh access_token / refresh_token cookie set
+      const winnerCookies = (winner.headers['set-cookie'] as unknown as string[]) ?? [];
+      const loserCookies = (loser.headers['set-cookie'] as unknown as string[]) ?? [];
+      expect(
+        winnerCookies.some((c: string) => c.startsWith('access_token=')),
+      ).toBe(true);
+      expect(
+        winnerCookies.some((c: string) => c.startsWith('refresh_token=')),
+      ).toBe(true);
+      expect(
+        loserCookies.some((c: string) => c.startsWith('access_token=')),
+      ).toBe(false);
+      expect(
+        loserCookies.some((c: string) => c.startsWith('refresh_token=')),
+      ).toBe(false);
+
+      captureSpy.mockRestore();
     });
   });
 });
