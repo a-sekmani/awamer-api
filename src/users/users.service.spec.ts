@@ -664,7 +664,7 @@ describe('UsersService', () => {
         const dto = {
           responses: [
             { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 1 },
+            { questionKey: 'interests', items: ['ai'], stepNumber: 1 },
             { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
           ],
         };
