@@ -167,7 +167,7 @@ describe('Onboarding (e2e)', () => {
     });
 
     it('should return not-completed status for a new user', async () => {
-      const { token } = await createTestUser();
+      const { token } = await createTestUser({ emailVerified: true });
 
       const res = await request(app.getHttpServer())
         .get('/api/v1/users/me/onboarding')
@@ -535,7 +535,8 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ background: 'astronaut' }))
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid background');
+      expect(res.body.errorCode).toBe('INVALID_BACKGROUND');
+      expect(res.body.message).not.toContain('astronaut');
     });
 
     it('should return 400 for invalid goals value', async () => {
@@ -547,7 +548,8 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ goals: 'become_ceo' }))
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid goals');
+      expect(res.body.errorCode).toBe('INVALID_GOALS');
+      expect(res.body.message).not.toContain('become_ceo');
     });
 
     it('should return 400 when interests is not valid JSON', async () => {
@@ -559,7 +561,8 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: 'not-json' }))
         .expect(400);
 
-      expect(res.body.message).toContain('valid JSON array');
+      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
+      expect(res.body.message).not.toContain('not-json');
     });
 
     it('should return 400 when interests is a JSON string, not array', async () => {
@@ -571,7 +574,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '"ai"' }))
         .expect(400);
 
-      expect(res.body.message).toContain('JSON array');
+      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
     });
 
     it('should return 400 when interests is a JSON object, not array', async () => {
@@ -583,7 +586,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '{"ai": true}' }))
         .expect(400);
 
-      expect(res.body.message).toContain('JSON array');
+      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
     });
 
     it('should return 400 when interests array is empty (below MIN_INTERESTS)', async () => {
@@ -595,7 +598,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '[]' }))
         .expect(400);
 
-      expect(res.body.message).toContain('between');
+      expect(res.body.errorCode).toBe('INTERESTS_COUNT_INVALID');
     });
 
     it('should return 400 when interests exceed MAX_INTERESTS (5 items)', async () => {
@@ -615,7 +618,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: fiveInterests }))
         .expect(400);
 
-      expect(res.body.message).toContain('between');
+      expect(res.body.errorCode).toBe('INTERESTS_COUNT_INVALID');
     });
 
     it('should return 400 when interests contain an invalid value', async () => {
@@ -627,7 +630,8 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '["ai","cooking"]' }))
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid interest');
+      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
+      expect(res.body.message).not.toContain('cooking');
     });
 
     it('should return 400 when interests contain duplicate values', async () => {
@@ -639,7 +643,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '["ai","ai"]' }))
         .expect(400);
 
-      expect(res.body.message).toContain('duplicate');
+      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
     });
 
     it('should return 400 when interests contain a non-string element', async () => {
@@ -651,7 +655,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '[123]' }))
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid interest');
+      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
     });
 
     // ── Wrong step numbers ──
@@ -992,7 +996,7 @@ describe('Onboarding (e2e)', () => {
     });
 
     it('GET /users/me/onboarding — 21st request within 60s returns 429', async () => {
-      const { token } = await createTestUser();
+      const { token } = await createTestUser({ emailVerified: true });
 
       // Fire 20 requests — all should pass
       for (let i = 0; i < 20; i++) {
@@ -1253,7 +1257,7 @@ describe('Onboarding (e2e)', () => {
       )!;
 
       expect(accessCookie).toContain('HttpOnly');
-      expect(accessCookie.toLowerCase()).toContain('samesite=lax');
+      expect(accessCookie.toLowerCase()).toContain('samesite=strict');
       expect(accessCookie).toContain('Path=/');
     });
 
@@ -1321,7 +1325,7 @@ describe('Onboarding (e2e)', () => {
       );
       expect(refreshCookie).toBeDefined();
       expect(refreshCookie).toContain('HttpOnly');
-      expect(refreshCookie!.toLowerCase()).toContain('samesite=lax');
+      expect(refreshCookie!.toLowerCase()).toContain('samesite=strict');
       expect(refreshCookie).toContain('Path=/api/v1/auth');
     });
   });
@@ -1464,7 +1468,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '[" ai "]' }))
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid interest');
+      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
     });
 
     it('interests with uppercase values is rejected (case-sensitive)', async () => {
@@ -1476,7 +1480,8 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '["AI"]' }))
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid interest');
+      expect(res.body.errorCode).toBe('INVALID_INTERESTS');
+      expect(res.body.message).not.toContain('AI');
     });
 
     it('background with leading/trailing whitespace is rejected', async () => {
@@ -1488,7 +1493,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ background: ' student ' }))
         .expect(400);
 
-      expect(res.body.message).toContain('Invalid background');
+      expect(res.body.errorCode).toBe('INVALID_BACKGROUND');
     });
 
     it('interests as JSON object instead of array is rejected', async () => {
@@ -1500,7 +1505,7 @@ describe('Onboarding (e2e)', () => {
         .send(validPayload({ interests: '{"items": ["ai"]}' }))
         .expect(400);
 
-      expect(res.body.message).toContain('JSON array');
+      expect(res.body.errorCode).toBe('INTERESTS_PARSE_ERROR');
     });
 
     it('POST with empty body {} returns 400 with validation errors', async () => {

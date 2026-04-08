@@ -232,10 +232,10 @@ describe('SubmitOnboardingDto', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('should reject answer exceeding 1000 characters', async () => {
+  it('should reject answer exceeding 200 characters', async () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
       responses: [
-        { questionKey: 'background', answer: 'a'.repeat(1001), stepNumber: 1 },
+        { questionKey: 'background', answer: 'a'.repeat(201), stepNumber: 1 },
         { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],

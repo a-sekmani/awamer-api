@@ -674,136 +674,163 @@ describe('UsersService', () => {
         await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('goals must have stepNumber 3');
       });
 
-      it('should throw if background answer is not in VALID_BACKGROUNDS', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'astronaut', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
+      const expectErrorCode = async (
+        dto: Parameters<typeof service.submitOnboarding>[1],
+        expectedCode: ErrorCode,
+      ) => {
+        try {
+          await service.submitOnboarding('user-uuid', dto);
+          throw new Error('Expected BadRequestException');
+        } catch (error) {
+          expect(error).toBeInstanceOf(BadRequestException);
+          const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+          expect(response.errorCode).toBe(expectedCode);
+          // Ensure no user-supplied value is reflected in the message
+          expect(String(response.message)).not.toMatch(/astronaut|become_famous|cooking|not-json/);
+        }
+      };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid background value');
+      it('should throw INVALID_BACKGROUND if background answer is not in VALID_BACKGROUNDS', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'astronaut', stepNumber: 1 },
+              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INVALID_BACKGROUND,
+        );
       });
 
-      it('should throw if goals answer is not in VALID_GOALS', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'become_famous', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid goals value');
+      it('should throw INVALID_GOALS if goals answer is not in VALID_GOALS', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'become_famous', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INVALID_GOALS,
+        );
       });
 
-      it('should throw if interests answer is not valid JSON', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: 'not-json', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('valid JSON array');
+      it('should throw INTERESTS_PARSE_ERROR if interests answer is not valid JSON', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: 'not-json', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INTERESTS_PARSE_ERROR,
+        );
       });
 
-      it('should throw if interests answer is not a JSON array (e.g., JSON object)', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '{"key":"value"}', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('must be a JSON array');
+      it('should throw INTERESTS_PARSE_ERROR if interests answer is not a JSON array (e.g., JSON object)', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '{"key":"value"}', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INTERESTS_PARSE_ERROR,
+        );
       });
 
-      it('should throw if interests answer is an empty array', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '[]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('between 1 and 4');
+      it('should throw INTERESTS_COUNT_INVALID if interests answer is an empty array', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '[]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INTERESTS_COUNT_INVALID,
+        );
       });
 
-      it('should throw if interests has more than 4 items', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai","programming","cybersecurity","cloud_devops","blockchain"]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('between 1 and 4');
+      it('should throw INTERESTS_COUNT_INVALID if interests has more than 4 items', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '["ai","programming","cybersecurity","cloud_devops","blockchain"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INTERESTS_COUNT_INVALID,
+        );
       });
 
-      it('should throw if interests contains a value not in VALID_INTERESTS', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai","cooking"]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid interest value');
+      it('should throw INVALID_INTERESTS if interests contains a value not in VALID_INTERESTS', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '["ai","cooking"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INVALID_INTERESTS,
+        );
       });
 
-      it('should throw if interests contains duplicate values', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '["ai","ai"]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('duplicate values');
+      it('should throw INVALID_INTERESTS if interests contains duplicate values', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '["ai","ai"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INVALID_INTERESTS,
+        );
       });
 
-      it('should throw if interests contains a number instead of string', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '[1, 2]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid interest value');
+      it('should throw INVALID_INTERESTS if interests contains a number instead of string', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '[1, 2]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INVALID_INTERESTS,
+        );
       });
 
-      it('should throw if interests contains null values', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '[null, "ai"]', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Invalid interest value');
+      it('should throw INVALID_INTERESTS if interests contains null values', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '[null, "ai"]', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INVALID_INTERESTS,
+        );
       });
 
-      it('should throw if interests is a JSON string (not array)', async () => {
-        const dto = {
-          responses: [
-            { questionKey: 'background', answer: 'student', stepNumber: 1 },
-            { questionKey: 'interests', answer: '"ai"', stepNumber: 2 },
-            { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
-          ],
-        };
-
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('must be a JSON array');
+      it('should throw INTERESTS_PARSE_ERROR if interests is a JSON string (not array)', async () => {
+        await expectErrorCode(
+          {
+            responses: [
+              { questionKey: 'background', answer: 'student', stepNumber: 1 },
+              { questionKey: 'interests', answer: '"ai"', stepNumber: 2 },
+              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+            ],
+          },
+          ErrorCode.INTERESTS_PARSE_ERROR,
+        );
       });
 
       it('should throw ONBOARDING_ALREADY_COMPLETED with correct errorCode', async () => {

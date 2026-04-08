@@ -163,18 +163,22 @@ export class UsersService {
         backgroundResponse.answer,
       )
     ) {
-      throw new BadRequestException(
-        `Invalid background value: ${backgroundResponse.answer}`,
-      );
+      throw new BadRequestException({
+        message: 'Invalid background value',
+        errorCode: ErrorCode.INVALID_BACKGROUND,
+        field: 'background',
+      });
     }
 
     // 5. Validate goals answer
     if (
       !(VALID_GOALS as readonly string[]).includes(goalsResponse.answer)
     ) {
-      throw new BadRequestException(
-        `Invalid goals value: ${goalsResponse.answer}`,
-      );
+      throw new BadRequestException({
+        message: 'Invalid goals value',
+        errorCode: ErrorCode.INVALID_GOALS,
+        field: 'goals',
+      });
     }
 
     // 6. Validate interests answer
@@ -182,24 +186,30 @@ export class UsersService {
     try {
       interestsArray = JSON.parse(interestsResponse.answer);
     } catch {
-      throw new BadRequestException(
-        'interests answer must be a valid JSON array',
-      );
+      throw new BadRequestException({
+        message: 'interests answer must be a valid JSON array',
+        errorCode: ErrorCode.INTERESTS_PARSE_ERROR,
+        field: 'interests',
+      });
     }
 
     if (!Array.isArray(interestsArray)) {
-      throw new BadRequestException(
-        'interests answer must be a JSON array',
-      );
+      throw new BadRequestException({
+        message: 'interests answer must be a JSON array',
+        errorCode: ErrorCode.INTERESTS_PARSE_ERROR,
+        field: 'interests',
+      });
     }
 
     if (
       interestsArray.length < MIN_INTERESTS ||
       interestsArray.length > MAX_INTERESTS
     ) {
-      throw new BadRequestException(
-        `interests must contain between ${MIN_INTERESTS} and ${MAX_INTERESTS} items`,
-      );
+      throw new BadRequestException({
+        message: `interests must contain between ${MIN_INTERESTS} and ${MAX_INTERESTS} items`,
+        errorCode: ErrorCode.INTERESTS_COUNT_INVALID,
+        field: 'interests',
+      });
     }
 
     for (const item of interestsArray) {
@@ -207,17 +217,21 @@ export class UsersService {
         typeof item !== 'string' ||
         !(VALID_INTERESTS as readonly string[]).includes(item)
       ) {
-        throw new BadRequestException(
-          `Invalid interest value: ${String(item)}`,
-        );
+        throw new BadRequestException({
+          message: 'Invalid interest value',
+          errorCode: ErrorCode.INVALID_INTERESTS,
+          field: 'interests',
+        });
       }
     }
 
     const uniqueInterests = new Set(interestsArray);
     if (uniqueInterests.size !== interestsArray.length) {
-      throw new BadRequestException(
-        'interests must not contain duplicate values',
-      );
+      throw new BadRequestException({
+        message: 'interests must not contain duplicate values',
+        errorCode: ErrorCode.INVALID_INTERESTS,
+        field: 'interests',
+      });
     }
 
     // 7. Transaction: delete old + create new + update profile

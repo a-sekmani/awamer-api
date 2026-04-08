@@ -39,6 +39,7 @@ export class UsersController {
   }
 
   @Get('me/onboarding')
+  @UseGuards(EmailVerifiedGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   async getOnboardingStatus(@Req() req: Request) {
@@ -109,7 +110,7 @@ export class UsersController {
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 15 * 60 * 1000,
       path: '/',
     });
@@ -117,7 +118,7 @@ export class UsersController {
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: COOKIE_MAX_AGE_DEFAULT,
       path: '/api/v1/auth',
     });

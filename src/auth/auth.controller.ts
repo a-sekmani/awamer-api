@@ -160,7 +160,7 @@ export class AuthController {
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 15 * 60 * 1000, // 15 minutes
       path: '/',
     });
@@ -168,7 +168,7 @@ export class AuthController {
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: refreshMaxAge,
       path: '/api/v1/auth',
     });

@@ -214,7 +214,7 @@ describe('Auth (e2e)', () => {
       const cookies = getCookies(res);
       const accessCookie = findCookie(cookies, 'access_token')!;
       expect(accessCookie).toContain('HttpOnly');
-      expect(accessCookie.toLowerCase()).toContain('samesite=lax');
+      expect(accessCookie.toLowerCase()).toContain('samesite=strict');
     });
 
     it('should create user in database with correct defaults', async () => {
@@ -1509,7 +1509,7 @@ describe('Auth (e2e)', () => {
       const accessCookie = findCookie(cookies, 'access_token')!;
 
       expect(accessCookie).toContain('HttpOnly');
-      expect(accessCookie.toLowerCase()).toContain('samesite=lax');
+      expect(accessCookie.toLowerCase()).toContain('samesite=strict');
       expect(accessCookie).toContain('Path=/');
     });
 
@@ -1695,9 +1695,10 @@ describe('Auth (e2e)', () => {
         findCookie(newCookies, 'access_token')!,
       );
 
-      // Access protected endpoint with new token
+      // Access protected endpoint with new token (GET /users/me does not
+      // require email verification, so it's a clean check that the token works)
       await request(app.getHttpServer())
-        .get('/api/v1/users/me/onboarding')
+        .get('/api/v1/users/me')
         .set('Cookie', [`access_token=${newAccessToken}`])
         .expect(200);
     });

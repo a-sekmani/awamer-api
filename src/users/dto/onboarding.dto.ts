@@ -61,7 +61,7 @@ export class OnboardingResponseItemDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(1000)
+  @MaxLength(200)
   answer!: string;
 
   @IsInt()
