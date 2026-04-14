@@ -338,6 +338,10 @@ defined in `prisma/schema.prisma` and contains ~20 models covering users,
 content hierarchy, learning progress, quizzes, subscriptions, and
 certificates.
 
+The Prisma schema is driven by the Awamer Data Model on Confluence. For
+details on the most recent schema changes, see
+[`prisma/MIGRATION_NOTES.md`](./prisma/MIGRATION_NOTES.md).
+
 ### Common commands
 
 ```bash

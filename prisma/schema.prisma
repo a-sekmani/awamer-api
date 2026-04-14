@@ -7,14 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========================================================================
+// Awamer Data Model v6 — schema.prisma
+//
+// Authoritative source: Confluence — Data Model v6
+// https://awamer.atlassian.net/wiki/spaces/.../Data+Model
+//
+// IMPORTANT POLICY — Derived statistics:
+// The following values are ALWAYS computed from relationships at query
+// time and MUST NOT be added as stored columns on Path or Course:
+//   - lessonCount
+//   - sectionCount
+//   - courseCount (on Path)
+//   - totalDurationMinutes
+//   - projectCount
+// This policy is enforced by convention and code review.
+// ========================================================================
+
 // ============================================================================
-// ENUMS (16)
+// ENUMS
 // ============================================================================
 
 enum UserStatus {
-  ACTIVE     @map("active")
-  INACTIVE   @map("inactive")
-  SUSPENDED  @map("suspended")
+  ACTIVE    @map("active")
+  INACTIVE  @map("inactive")
+  SUSPENDED @map("suspended")
 
   @@map("user_status")
 }
@@ -141,10 +158,55 @@ enum PaymentStatus {
 }
 
 enum RateLimitType {
-  FORGOT_PASSWORD      @map("forgot_password")
-  VERIFICATION_RESEND  @map("verification_resend")
+  FORGOT_PASSWORD     @map("forgot_password")
+  VERIFICATION_RESEND @map("verification_resend")
 
   @@map("rate_limit_type")
+}
+
+enum MarketingOwnerType {
+  PATH   @map("path")
+  COURSE @map("course")
+
+  @@map("marketing_owner_type")
+}
+
+enum TestimonialStatus {
+  PENDING  @map("pending")
+  APPROVED @map("approved")
+  HIDDEN   @map("hidden")
+
+  @@map("testimonial_status")
+}
+
+enum CourseEnrollmentStatus {
+  ACTIVE    @map("active")
+  COMPLETED @map("completed")
+  DROPPED   @map("dropped")
+
+  @@map("course_enrollment_status")
+}
+
+enum CertificateType {
+  PATH   @map("path")
+  COURSE @map("course")
+
+  @@map("certificate_type")
+}
+
+enum CourseLevel {
+  BEGINNER     @map("beginner")
+  INTERMEDIATE @map("intermediate")
+  ADVANCED     @map("advanced")
+
+  @@map("course_level")
+}
+
+enum TagStatus {
+  ACTIVE @map("active")
+  HIDDEN @map("hidden")
+
+  @@map("tag_status")
 }
 
 // ============================================================================
@@ -152,40 +214,41 @@ enum RateLimitType {
 // ============================================================================
 
 model User {
-  id           String     @id @default(uuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  country          String?
-  registrationIp   String?
-  detectedCountry  String?
-  locale           String     @default("ar")
-  status       UserStatus @default(ACTIVE)
-  emailVerified          Boolean    @default(false)
-  refreshToken       String?
+  id                   String     @id @default(uuid())
+  name                 String
+  email                String     @unique
+  passwordHash         String
+  country              String?
+  registrationIp       String?
+  detectedCountry      String?
+  locale               String     @default("ar")
+  status               UserStatus @default(ACTIVE)
+  emailVerified        Boolean    @default(false)
+  refreshToken         String?
   passwordResetToken   String?
   passwordResetExpires DateTime?
   failedLoginAttempts  Int        @default(0)
   lockedUntil          DateTime?
   lastLoginAt          DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
-  profile              UserProfile?
-  roles                UserRole[]
-  onboardingResponses  OnboardingResponse[]
-  emailVerifications   EmailVerification[]
-  pathEnrollments      PathEnrollment[]
-  lessonProgress       LessonProgress[]
-  sectionProgress      SectionProgress[]
-  courseProgress        CourseProgress[]
-  pathProgress         PathProgress[]
-  lastPositions        LastPosition[]
-  quizAttempts         QuizAttempt[]
-  projectSubmissions   ProjectSubmission[]
-  subscriptions        Subscription[]
-  payments             Payment[]
-  certificates         Certificate[]
+  profile             UserProfile?
+  roles               UserRole[]
+  onboardingResponses OnboardingResponse[]
+  emailVerifications  EmailVerification[]
+  pathEnrollments     PathEnrollment[]
+  courseEnrollments   CourseEnrollment[]
+  lessonProgress      LessonProgress[]
+  sectionProgress     SectionProgress[]
+  courseProgress      CourseProgress[]
+  pathProgress        PathProgress[]
+  lastPositions       LastPosition[]
+  quizAttempts        QuizAttempt[]
+  projectSubmissions  ProjectSubmission[]
+  subscriptions       Subscription[]
+  payments            Payment[]
+  certificates        Certificate[]
 
   @@index([email])
   @@map("users")
@@ -280,25 +343,31 @@ model Category {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  paths Path[]
+  paths   Path[]
+  courses Course[]
 
   @@map("categories")
 }
 
 model Path {
-  id             String     @id @default(uuid())
-  categoryId     String
-  title          String
-  slug           String     @unique
-  description    String?
-  level          String?
-  thumbnail      String?
-  estimatedHours Int?
-  isFree         Boolean    @default(false) @map("is_free")
-  status         PathStatus @default(DRAFT)
-  order          Int        @default(0)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id                  String     @id @default(uuid())
+  categoryId          String
+  title               String
+  slug                String     @unique
+  subtitle            String?
+  description         String?
+  level               String?
+  thumbnail           String?
+  promoVideoUrl       String?
+  promoVideoThumbnail String?
+  estimatedHours      Int?
+  isNew               Boolean    @default(false)
+  skills              Json       @default("[]")
+  isFree              Boolean    @default(false) @map("is_free")
+  status              PathStatus @default(DRAFT)
+  order               Int        @default(0)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   courses         Course[]
@@ -306,6 +375,7 @@ model Path {
   pathProgress    PathProgress[]
   lastPositions   LastPosition[]
   certificates    Certificate[]
+  tags            PathTag[]
 
   @@index([categoryId])
   @@map("paths")
@@ -313,33 +383,46 @@ model Path {
 
 model Course {
   id          String       @id @default(uuid())
-  pathId      String
+  categoryId  String
+  pathId      String?
+  slug        String       @unique
   title       String
+  subtitle    String?
   description String?
-  order       Int          @default(0)
+  level       CourseLevel?
+  thumbnail   String?
+  isNew       Boolean      @default(false)
+  skills      Json         @default("[]")
+  order       Int?
   isFree      Boolean      @default(false) @map("is_free")
   status      CourseStatus @default(DRAFT)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  path           Path             @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  category       Category           @relation(fields: [categoryId], references: [id])
+  path           Path?              @relation(fields: [pathId], references: [id], onDelete: Cascade)
   sections       Section[]
   quizzes        Quiz[]
-  courseProgress  CourseProgress[]
+  courseProgress CourseProgress[]
   lastPositions  LastPosition[]
   projects       Project[]
+  tags           CourseTag[]
+  enrollments    CourseEnrollment[]
+  certificates   Certificate[]
 
   @@index([pathId])
+  @@index([categoryId])
   @@map("courses")
 }
 
 model Section {
-  id        String   @id @default(uuid())
-  courseId   String
-  title     String
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  courseId    String
+  title       String
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons         Lesson[]
@@ -451,7 +534,7 @@ model SectionProgress {
 model CourseProgress {
   id                String         @id @default(uuid())
   userId            String
-  courseId           String
+  courseId          String
   completedSections Int            @default(0)
   totalSections     Int            @default(0)
   percentage        Float          @default(0)
@@ -491,8 +574,8 @@ model PathProgress {
 model LastPosition {
   id         String   @id @default(uuid())
   userId     String
-  pathId     String
-  courseId    String
+  pathId     String?
+  courseId   String?
   sectionId  String
   lessonId   String
   accessedAt DateTime @default(now())
@@ -500,32 +583,35 @@ model LastPosition {
   updatedAt  DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  path    Path    @relation(fields: [pathId], references: [id], onDelete: Cascade)
-  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  path    Path?   @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  course  Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
   section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, pathId])
   @@index([userId])
   @@index([pathId])
   @@map("last_positions")
 }
 
 model Certificate {
-  id              String   @id @default(uuid())
+  id              String          @id @default(uuid())
   userId          String
-  pathId          String
-  certificateCode String   @unique
+  pathId          String?
+  courseId        String?
+  type            CertificateType
+  certificateCode String          @unique
   certificateUrl  String?
-  issuedAt        DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  issuedAt        DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  path Path @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  path   Path?   @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  course Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([pathId])
+  @@index([type])
   @@map("certificates")
 }
 
@@ -535,7 +621,7 @@ model Certificate {
 
 model Quiz {
   id               String   @id @default(uuid())
-  courseId          String
+  courseId         String
   sectionId        String?
   title            String
   type             QuizType
@@ -546,8 +632,8 @@ model Quiz {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  section  Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section      Section?      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   questions    Question[]
   quizAttempts QuizAttempt[]
 
@@ -614,7 +700,7 @@ model QuizAttempt {
 
 model Project {
   id          String   @id @default(uuid())
-  courseId     String
+  courseId    String
   title       String
   description String?
   order       Int      @default(0)
@@ -711,4 +797,113 @@ model Payment {
   @@index([subscriptionId])
   @@index([planId])
   @@map("payments")
+}
+
+// ============================================================================
+// TAXONOMY (Tag + pivots)
+// ============================================================================
+
+model Tag {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  status    TagStatus @default(ACTIVE)
+  createdAt DateTime  @default(now())
+
+  paths   PathTag[]
+  courses CourseTag[]
+
+  @@index([status])
+  @@map("tags")
+}
+
+model PathTag {
+  pathId String
+  tagId  String
+
+  path Path @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([pathId, tagId])
+  @@index([tagId])
+  @@map("path_tags")
+}
+
+model CourseTag {
+  courseId String
+  tagId    String
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, tagId])
+  @@index([tagId])
+  @@map("course_tags")
+}
+
+// ============================================================================
+// MARKETING CONTENT (polymorphic)
+// ============================================================================
+
+model Feature {
+  id          String             @id @default(uuid())
+  ownerType   MarketingOwnerType
+  ownerId     String
+  icon        String
+  title       String
+  description String             @db.Text
+  order       Int                @default(0)
+
+  @@index([ownerType, ownerId])
+  @@map("features")
+}
+
+model Faq {
+  id        String             @id @default(uuid())
+  ownerType MarketingOwnerType
+  ownerId   String
+  question  String             @db.Text
+  answer    String             @db.Text
+  order     Int                @default(0)
+
+  @@index([ownerType, ownerId])
+  @@map("faqs")
+}
+
+model Testimonial {
+  id          String             @id @default(uuid())
+  ownerType   MarketingOwnerType
+  ownerId     String
+  authorName  String
+  authorTitle String?
+  avatarUrl   String?
+  content     String             @db.Text
+  rating      Int?
+  status      TestimonialStatus  @default(PENDING)
+  order       Int                @default(0)
+  createdAt   DateTime           @default(now())
+
+  @@index([ownerType, ownerId])
+  @@index([status])
+  @@map("testimonials")
+}
+
+// ============================================================================
+// COURSE ENROLLMENT (standalone courses)
+// ============================================================================
+
+model CourseEnrollment {
+  id         String                 @id @default(uuid())
+  userId     String
+  courseId   String
+  status     CourseEnrollmentStatus @default(ACTIVE)
+  enrolledAt DateTime               @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("course_enrollments")
 }
