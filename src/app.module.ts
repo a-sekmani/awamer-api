@@ -25,6 +25,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { MailModule } from './mail/mail.module';
 import { StorageModule } from './storage/storage.module';
 import { ContentModule } from './content/content.module';
+import { LearningModule } from './learning/learning.module';
+import { EnrollmentModule } from './enrollment/enrollment.module';
 
 @Module({
   imports: [
@@ -78,6 +80,8 @@ import { ContentModule } from './content/content.module';
     MailModule,
     StorageModule,
     ContentModule,
+    EnrollmentModule,
+    LearningModule,
   ],
   controllers: [],
   providers: [

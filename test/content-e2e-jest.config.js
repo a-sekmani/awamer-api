@@ -2,7 +2,7 @@
 module.exports = {
   rootDir: '..',
   testEnvironment: 'node',
-  testRegex: 'test/content/.*\\.e2e-spec\\.ts$',
+  testRegex: 'test/(content|enrollment|certificates)/.*\\.e2e-spec\\.ts$',
   transform: {
     '^.+\\.ts$': ['ts-jest', { isolatedModules: true }],
   },

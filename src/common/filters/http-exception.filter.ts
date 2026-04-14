@@ -24,6 +24,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       let message = exception.message;
       let errorCode: string | undefined;
       let errors: unknown[] = [];
+      const passthrough: Record<string, unknown> = {};
+
+      // Keys the filter is allowed to surface verbatim from the exception
+      // response object onto the top-level error body. Used by e.g.
+      // EnrollmentService.enrollInCourse to return `parentPathId` so the
+      // frontend can redirect to the parent path enrollment flow (KAN-73 §5.1).
+      const PASSTHROUGH_KEYS = ['parentPathId', 'upgradeUrl', 'reason'];
 
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const resp = exceptionResponse as Record<string, unknown>;
@@ -43,11 +50,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         } else if (typeof resp.message === 'string') {
           message = resp.message;
         }
+
+        for (const key of PASSTHROUGH_KEYS) {
+          if (resp[key] !== undefined) {
+            passthrough[key] = resp[key];
+          }
+        }
       }
 
       const body: Record<string, unknown> = {
         statusCode: status,
         message,
+        ...passthrough,
       };
 
       if (errorCode) {

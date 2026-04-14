@@ -329,6 +329,53 @@ Only `APPROVED` testimonials are returned by the public query helper;
 are stubbed with `TODO(KAN-74)` comments at every mutation site pending the
 Redis `CacheModule` landing.
 
+### Enrollment + Certificates (KAN-73)
+
+Three tightly-coupled modules deliver the learner loop introduced by Data
+Model v6: `EnrollmentModule` handles both path and standalone-course
+enrollment; `ProgressModule` owns the transactional lesson-completion
+cascade; `CertificatesModule` issues course- and path-level certificates
+automatically when eligibility is reached. A thin `LearningModule` exposes
+the single `POST /learning/lessons/:lessonId/complete` route protected by
+the full guard chain.
+
+| Method | Path | Guards | Description |
+|---|---|---|---|
+| POST | `/enrollments/paths/:pathId` | JWT | Enroll the current learner in a path. Creates `PathEnrollment`, `PathProgress`, and a zeroed `CourseProgress` for every course in the path, all in one transaction. |
+| POST | `/enrollments/courses/:courseId` | JWT | Enroll in a standalone course. Rejects path-attached courses with a 400 carrying `parentPathId` so the frontend can redirect. |
+| GET | `/enrollments/me` | JWT | List the current learner's enrollments grouped as `{ paths, courses }`. Path-attached courses never appear under `courses`. |
+| GET | `/enrollments/me/courses/:courseId` | JWT | Return a specific course enrollment with progress and last position. 404 for missing-or-not-enrolled (identical response to avoid leaking course existence). |
+| POST | `/learning/lessons/:lessonId/complete` | JWT + Enrollment + ContentAccess | Mark a lesson complete. Runs the full atomic cascade: lesson progress → section → course → (path) → last position → course-cert eligibility → path-cert eligibility. Idempotent on re-completion. |
+| GET | `/certificates/me` | JWT | List the current learner's certificates, most recent first, with subject relation (path or course). |
+| GET | `/certificates/verify/:code` | Public + tightened throttle (30/60s) | Third-party certificate verification. Returns a minimal allow-listed DTO — `{ valid, type, issuedAt, holder: { fullName }, subject }` — and 404 on unknown codes. No email, no enrollment date, no progress. |
+
+**Access control** — `EnrollmentGuard` runs before `ContentAccessGuard` per
+Constitution Principle VI: non-enrolled callers are rejected before any
+paywall evaluation can leak free/paid state. Only `ACTIVE` enrollments grant
+access; `COMPLETED`, `PAUSED`, and `DROPPED` all return 403. The `isFree`
+cascade follows the constitutional order `Path → Course → Lesson → active
+subscription → deny`; for standalone courses the `Path` step is skipped.
+
+**Observability** — certificate issuance fires a `certificate_issued` event
+via `AnalyticsService.capture()` per FR-030. The event carries `userId`,
+`certificateId`, `certificateType`, `pathId`/`courseId`, `certificateCode`,
+and `issuedAt`. The event is emitted exactly once at genuine new-issuance
+(never when `checkCourseEligibility` / `checkPathEligibility` returns an
+existing certificate). The underlying PostHog client wiring inside
+`AnalyticsService` itself remains a pre-existing `TODO` owned by a future
+analytics ticket — this feature is compliant at the contract level, and
+events will automatically reach PostHog the moment the service gets its
+real client with zero changes to certificate code.
+
+**Deferred fallbacks** — two `TODO(...)` markers are intentional:
+`TODO(KAN-quizzes)` inside `CertificatesService.allCourseQuizzesPassed`
+(course eligibility treats the quiz requirement as satisfied until the
+quiz subsystem ships), and `TODO(subscriptions)` inside
+`ContentAccessGuard.hasActiveSubscription` (paid content is temporarily
+allowed until `SubscriptionsService.isActive()` exists — enrollment
+discipline still applies, so the paywall is effectively off but access
+control is not).
+
 A live Postman collection is at
 `postman/awamer-api.postman_collection.json` — import it and set the
 `base_url` variable to `http://localhost:3001/api/v1`.

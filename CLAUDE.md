@@ -193,10 +193,10 @@ PORT=3001
 - certificate_issued
 
 ## Recent Changes
+- 011-enrollment-certificates: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, Passport JWT, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5, @nestjs/jwt, cookie-parser (all already in project — **no new deps**)
 - 010-marketing-content: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5, Passport JWT (all already in project)
 - 009-tags-module: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5 (already in project)
-- 008-onboarding-validation: Added TypeScript 5.x (Node.js 20 LTS) + NestJS 10, Prisma 6.19, class-validator, class-transformer
 
 ## Active Technologies
-- TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5, Passport JWT (all already in project) (010-marketing-content)
-- PostgreSQL via Prisma (shared `PrismaService` at `src/prisma/prisma.service.ts`). Tables already exist: `Feature`, `Faq`, `Testimonial`, enums `MarketingOwnerType`, `TestimonialStatus`. (010-marketing-content)
+- TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, Passport JWT, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5, @nestjs/jwt, cookie-parser (all already in project — **no new deps**) (011-enrollment-certificates)
+- PostgreSQL via Prisma (shared `PrismaService` at `src/prisma/prisma.service.ts`). All required tables and enums are in place from KAN-70: `PathEnrollment`, `CourseEnrollment`, `LessonProgress`, `SectionProgress`, `CourseProgress`, `PathProgress`, `LastPosition` (dual-scope with partial unique indexes `last_positions_user_path_unique` and `last_positions_user_course_unique` plus a `last_positions_exactly_one_scope` CHECK), `Certificate` (nullable `pathId`/`courseId` + `type: CertificateType`), and `QuizAttempt` (uses `status: AttemptStatus = PASSED` for a pass). (011-enrollment-certificates)
