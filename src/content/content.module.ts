@@ -4,11 +4,12 @@ import { TagsController } from './tags/tags.controller';
 import { AdminTagsController } from './tags/admin-tags.controller';
 import { TagsService } from './tags/tags.service';
 import { ReplaceTagAssociationsHelper } from './tags/helpers/replace-tag-associations.helper';
+import { MarketingModule } from './marketing/marketing.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, MarketingModule],
   controllers: [TagsController, AdminTagsController],
   providers: [TagsService, ReplaceTagAssociationsHelper],
-  exports: [ReplaceTagAssociationsHelper],
+  exports: [ReplaceTagAssociationsHelper, MarketingModule],
 })
 export class ContentModule {}

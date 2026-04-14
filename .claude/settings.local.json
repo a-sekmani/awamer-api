@@ -41,7 +41,8 @@
       "Bash(gh pr:*)",
       "Bash(ls /Users/ahmadsekmani/Desktop/Projects/awamer-api/docker-compose*)",
       "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes\" npx prisma migrate reset --force --skip-seed)",
-      "Bash(yes)"
+      "Bash(yes)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh:*)"
     ]
   }
 }

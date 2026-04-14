@@ -289,6 +289,46 @@ for use by future Path/Course admin edit flows (KAN-72, KAN-73). It runs
 inside a Prisma transaction, dedupes input, validates that every tag exists
 and is `ACTIVE`, and atomically replaces the owner's tag set.
 
+### Content — Marketing (Features, FAQs, Testimonials) (KAN-72)
+
+`ContentModule` also wires the marketing submodule at
+`src/content/marketing/`, which owns the admin CRUD surface for the three
+polymorphic marketing entities that appear on public Path and Course detail
+pages. Every entity belongs to exactly one owner, identified by
+`(ownerType, ownerId)` where `ownerType ∈ { PATH, COURSE }`. Ownership has no
+Prisma `@relation`, so referential integrity is enforced in the service
+layer via `OwnerValidator`.
+
+| Method | Path | Guards | Description |
+|---|---|---|---|
+| GET | `/admin/{paths\|courses}/:ownerId/features` | JWT + Admin | List features for an owner, sorted by `order` ASC. |
+| POST | `/admin/{paths\|courses}/:ownerId/features` | JWT + Admin | Create a feature (`icon`, `title`, `description`, optional `order` → append). |
+| PATCH | `/admin/features/:id` | JWT + Admin | Partial update. |
+| PATCH | `/admin/{paths\|courses}/:ownerId/features/reorder` | JWT + Admin | Atomic reorder (`{ itemIds: string[] }` = full set). |
+| DELETE | `/admin/features/:id` | JWT + Admin | Delete. |
+| GET/POST/PATCH/DELETE | `/admin/.../faqs[...]` | JWT + Admin | Same shape, with `question` / `answer`. |
+| GET/POST/PATCH/DELETE | `/admin/.../testimonials[...]` | JWT + Admin | Same shape, plus the moderation endpoint below. Admin list returns all statuses. |
+| PATCH | `/admin/testimonials/:id/status` | JWT + Admin | Moderation endpoint: `{ status: PENDING \| APPROVED \| HIDDEN }`. New testimonials are always created with `PENDING` regardless of input. |
+
+`ContentModule` re-exports `MarketingModule`, which in turn exports four
+reusable injectables for consumers in other modules:
+
+- `OwnerValidator` — throws `NotFoundException` if a referenced Path or
+  Course does not exist.
+- `ReorderHelper` — generic atomic reorder over any of the three marketing
+  models; validates set equality and runs inside `prisma.$transaction`.
+- `MarketingCleanupHelper` — `deleteAllForPath(id)` / `deleteAllForCourse(id)`
+  wipe all marketing content for the given owner in a single transaction.
+  Future Path/Course admin delete endpoints will call these.
+- `PublicMarketingQueries` — `getFeaturesByOwner`, `getFaqsByOwner`, and
+  `getApprovedTestimonialsByOwner` for KAN-26 to assemble public detail
+  responses without re-querying marketing tables.
+
+Only `APPROVED` testimonials are returned by the public query helper;
+`PENDING` and `HIDDEN` are visible only to admins. Cache invalidation hooks
+are stubbed with `TODO(KAN-74)` comments at every mutation site pending the
+Redis `CacheModule` landing.
+
 A live Postman collection is at
 `postman/awamer-api.postman_collection.json` — import it and set the
 `base_url` variable to `http://localhost:3001/api/v1`.
