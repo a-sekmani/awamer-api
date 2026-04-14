@@ -1,0 +1,45 @@
+### Public Tags API — KAN-71
+### Base URL: http://localhost:3001/api/v1
+### All responses are wrapped by the global ResponseTransformInterceptor
+### into { "data": ..., "message": "Success" }.
+
+###############################################################################
+# GET /api/v1/tags  —  list all ACTIVE tags with live published counts
+#
+# Auth:     none (public)
+# Headers:  Cache-Control: public, max-age=60   (response)
+# Sorted:   alphabetically by name (ascending)
+# Returns:  200 OK, never 204, never empty body; empty list is []
+###############################################################################
+
+GET http://localhost:3001/api/v1/tags
+Accept: application/json
+
+# Example response:
+# HTTP/1.1 200 OK
+# Cache-Control: public, max-age=60
+# Content-Type: application/json
+#
+# {
+#   "data": [
+#     {
+#       "id": "b7f1d1e0-3d9a-4a4a-9c1b-0a0b0c0d0e0f",
+#       "name": "أمن سيبراني",
+#       "slug": "cybersecurity",
+#       "pathCount": 2,
+#       "courseCount": 5
+#     },
+#     {
+#       "id": "a2e2c3d4-5678-4abc-8def-0123456789ab",
+#       "name": "تعلم آلي",
+#       "slug": "ml",
+#       "pathCount": 1,
+#       "courseCount": 0
+#     }
+#   ],
+#   "message": "Success"
+# }
+
+# Edge: no active tags exist
+# HTTP/1.1 200 OK
+# { "data": [], "message": "Success" }

@@ -270,6 +270,25 @@ curl http://localhost:3001/api/v1/health
 | GET | `/users/me/onboarding` | JWT + EmailVerified | Get onboarding status |
 | POST | `/users/me/onboarding` | JWT + EmailVerified | Submit onboarding (atomic, single-shot) |
 
+### Content — Tags (KAN-71)
+
+The `ContentModule` (at `src/content/`) exposes the public taxonomy and admin
+curation surfaces for tags. The tag vocabulary is a second, descriptive axis
+that runs in parallel with the mandatory Category hierarchy.
+
+| Method | Path | Guards | Description |
+|---|---|---|---|
+| GET | `/tags` | Public | List all `ACTIVE` tags with live `pathCount` and `courseCount` (`PUBLISHED` only); sorted alphabetically; `Cache-Control: public, max-age=60`. |
+| GET | `/admin/tags` | JWT + Admin | List all tags (including `HIDDEN`) with admin fields (`status`, `createdAt`). |
+| POST | `/admin/tags` | JWT + Admin | Create a tag (`name`, `slug`, optional `status`). Returns 201, or 409 on duplicate slug. |
+| PATCH | `/admin/tags/:id` | JWT + Admin | Partial update; 404 if unknown, 409 on slug collision, 400 on empty body. |
+| DELETE | `/admin/tags/:id` | JWT + Admin | Hard delete; cascades `PathTag`/`CourseTag` rows. Returns 204, or 404 if unknown. |
+
+`ContentModule` also exports the `ReplaceTagAssociationsHelper` injectable
+for use by future Path/Course admin edit flows (KAN-72, KAN-73). It runs
+inside a Prisma transaction, dedupes input, validates that every tag exists
+and is `ACTIVE`, and atomically replaces the owner's tag set.
+
 A live Postman collection is at
 `postman/awamer-api.postman_collection.json` — import it and set the
 `base_url` variable to `http://localhost:3001/api/v1`.

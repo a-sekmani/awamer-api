@@ -1,0 +1,149 @@
+### Admin Tags API — KAN-71
+### Base URL: http://localhost:3001/api/v1
+### Auth: JwtAuthGuard + RolesGuard(@Roles(Role.ADMIN))
+### Cookie: httpOnly JWT issued by /auth/login; user must have ADMIN role.
+### All responses are wrapped by the global ResponseTransformInterceptor.
+
+###############################################################################
+# GET /api/v1/admin/tags  —  list ALL tags (active and hidden)
+#
+# Sorted:   alphabetically by name (ascending)
+# Returns:  200 OK with admin shape (includes status + createdAt)
+###############################################################################
+
+GET http://localhost:3001/api/v1/admin/tags
+Accept: application/json
+
+# Example response:
+# {
+#   "data": [
+#     {
+#       "id": "b7f1...",
+#       "name": "أمن سيبراني",
+#       "slug": "cybersecurity",
+#       "pathCount": 2,
+#       "courseCount": 5,
+#       "status": "ACTIVE",
+#       "createdAt": "2026-04-14T10:00:00.000Z"
+#     },
+#     {
+#       "id": "c3d4...",
+#       "name": "مفهوم مؤقت",
+#       "slug": "temp",
+#       "pathCount": 0,
+#       "courseCount": 0,
+#       "status": "HIDDEN",
+#       "createdAt": "2026-04-10T09:00:00.000Z"
+#     }
+#   ],
+#   "message": "Success"
+# }
+
+###############################################################################
+# POST /api/v1/admin/tags  —  create a new tag
+#
+# Body validation:
+#   name:   required, 1–100 chars, not whitespace-only
+#   slug:   required, 1–60 chars, /^[a-z0-9]+(-[a-z0-9]+)*$/
+#   status: optional, "ACTIVE" | "HIDDEN", defaults to "ACTIVE"
+#
+# Returns: 201 Created with AdminTagResponseDto
+#          409 Conflict on duplicate slug
+#          400 Bad Request on validation errors
+###############################################################################
+
+POST http://localhost:3001/api/v1/admin/tags
+Content-Type: application/json
+
+{
+  "name": "ذكاء صناعي",
+  "slug": "ai",
+  "status": "ACTIVE"
+}
+
+# Example success response:
+# HTTP/1.1 201 Created
+# {
+#   "data": {
+#     "id": "<new-uuid>",
+#     "name": "ذكاء صناعي",
+#     "slug": "ai",
+#     "pathCount": 0,
+#     "courseCount": 0,
+#     "status": "ACTIVE",
+#     "createdAt": "2026-04-14T12:00:00.000Z"
+#   },
+#   "message": "Success"
+# }
+
+# Duplicate slug error:
+# HTTP/1.1 409 Conflict
+# {
+#   "statusCode": 409,
+#   "message": "Tag with slug 'ai' already exists",
+#   "errors": []
+# }
+
+###############################################################################
+# PATCH /api/v1/admin/tags/:id  —  update an existing tag
+#
+# Body validation:
+#   Partial of CreateTagDto; at least one field must be present.
+#
+# Returns: 200 OK with the updated AdminTagResponseDto
+#          404 Not Found if no tag with that id
+#          409 Conflict if renaming to a slug already used by another tag
+#          400 Bad Request on validation errors or empty body
+###############################################################################
+
+PATCH http://localhost:3001/api/v1/admin/tags/b7f1d1e0-3d9a-4a4a-9c1b-0a0b0c0d0e0f
+Content-Type: application/json
+
+{
+  "name": "الذكاء الاصطناعي",
+  "status": "HIDDEN"
+}
+
+# Example success:
+# HTTP/1.1 200 OK
+# {
+#   "data": {
+#     "id": "b7f1...",
+#     "name": "الذكاء الاصطناعي",
+#     "slug": "ai",
+#     "pathCount": 0,
+#     "courseCount": 0,
+#     "status": "HIDDEN",
+#     "createdAt": "2026-04-14T12:00:00.000Z"
+#   },
+#   "message": "Success"
+# }
+
+# Not found:
+# HTTP/1.1 404 Not Found
+# {
+#   "statusCode": 404,
+#   "message": "Tag '00000000-0000-0000-0000-000000000000' not found",
+#   "errors": []
+# }
+
+###############################################################################
+# DELETE /api/v1/admin/tags/:id  —  permanently delete a tag
+#
+# Side effect: schema-level ON DELETE CASCADE on PathTag and CourseTag removes
+# every association row referencing the deleted tag. Paths and Courses are
+# NOT modified.
+#
+# Returns: 204 No Content on success
+#          404 Not Found if no tag with that id
+###############################################################################
+
+DELETE http://localhost:3001/api/v1/admin/tags/b7f1d1e0-3d9a-4a4a-9c1b-0a0b0c0d0e0f
+
+# Success:
+# HTTP/1.1 204 No Content
+# (empty body)
+
+# Not found:
+# HTTP/1.1 404 Not Found
+# { "statusCode": 404, "message": "Tag '...' not found", "errors": [] }

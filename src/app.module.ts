@@ -24,6 +24,7 @@ import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MailModule } from './mail/mail.module';
 import { StorageModule } from './storage/storage.module';
+import { ContentModule } from './content/content.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { StorageModule } from './storage/storage.module';
     AnalyticsModule,
     MailModule,
     StorageModule,
+    ContentModule,
   ],
   controllers: [],
   providers: [
