@@ -294,7 +294,7 @@ model Path {
   level          String?
   thumbnail      String?
   estimatedHours Int?
-  is_free        Boolean    @default(false)
+  isFree         Boolean    @default(false) @map("is_free")
   status         PathStatus @default(DRAFT)
   order          Int        @default(0)
   createdAt      DateTime   @default(now())
@@ -317,7 +317,7 @@ model Course {
   title       String
   description String?
   order       Int          @default(0)
-  is_free     Boolean      @default(false)
+  isFree      Boolean      @default(false) @map("is_free")
   status      CourseStatus @default(DRAFT)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -357,7 +357,7 @@ model Lesson {
   title            String
   type             LessonType
   order            Int        @default(0)
-  is_free          Boolean    @default(false)
+  isFree           Boolean    @default(false) @map("is_free")
   estimatedMinutes Int?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
