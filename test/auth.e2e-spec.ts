@@ -7,7 +7,9 @@ import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import type Redis from 'ioredis';
 import { AppModule } from '../src/app.module';
+import { REDIS_CLIENT } from '../src/common/cache/redis.provider';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /**
@@ -28,6 +30,7 @@ describe('Auth (e2e)', () => {
   let prisma: PrismaService;
   let jwtService: JwtService;
   let configService: ConfigService;
+  let redis: Redis | undefined;
 
   const TEST_EMAIL_PREFIX = 'e2e-auth-test';
   let testCounter = 0;
@@ -140,6 +143,12 @@ describe('Auth (e2e)', () => {
     prisma = app.get(PrismaService);
     jwtService = app.get(JwtService);
     configService = app.get(ConfigService);
+    try {
+      redis = app.get<Redis>(REDIS_CLIENT);
+    } catch {
+      // CacheModule not loaded in this test env — leave redis undefined.
+      redis = undefined;
+    }
   });
 
   afterAll(async () => {
@@ -862,10 +871,15 @@ describe('Auth (e2e)', () => {
     // The forgot-password endpoint has its own internal rate limiting
     // (60s cooldown per email, 5/hour, 10/day per IP). Clear all
     // FORGOT_PASSWORD records before each test to avoid cross-test interference.
+    // Also clear Redis so the Redis-backed @nestjs/throttler counter resets —
+    // otherwise throttle counts from earlier suites/tests would leak in.
     beforeEach(async () => {
       await prisma.rateLimitedRequest.deleteMany({
         where: { type: 'FORGOT_PASSWORD' },
       });
+      if (redis) {
+        await redis.flushdb();
+      }
     });
 
     it('should return 200 for existing email (no enumeration)', async () => {

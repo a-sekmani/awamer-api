@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { MarketingOwnerType, Prisma } from '@prisma/client';
+import { CacheService } from '../../../common/cache/cache.service';
+import { RevalidationHelper } from '../../../common/cache/revalidation.helper';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { OwnerValidator } from '../helpers/owner-validator.helper';
 import { ReorderHelper } from '../helpers/reorder.helper';
@@ -17,6 +19,8 @@ export class FeaturesService {
     private readonly prisma: PrismaService,
     private readonly ownerValidator: OwnerValidator,
     private readonly reorderHelper: ReorderHelper,
+    private readonly cache: CacheService,
+    private readonly revalidation: RevalidationHelper,
   ) {}
 
   // Feature has no createdAt column (schema frozen by KAN-70); tie-breaker
@@ -44,7 +48,6 @@ export class FeaturesService {
     dto: CreateFeatureDto,
   ): Promise<FeatureResponseDto> {
     await this.ownerValidator.ensureOwnerExists(ownerType, ownerId);
-    // TODO(KAN-74): invalidate cache key `${ownerType.toLowerCase()}:detail:${ownerId}`
     const order = dto.order ?? (await this.nextOrder(ownerType, ownerId));
     const created = await this.prisma.feature.create({
       data: {
@@ -56,6 +59,11 @@ export class FeaturesService {
         order,
       },
     });
+    const scope: 'path' | 'course' =
+      ownerType === 'PATH' ? 'path' : 'course';
+    await this.cache.invalidateOwner(scope, ownerId);
+    const slug = await this.cache.slugFor(scope, ownerId);
+    if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
     return FeatureResponseDto.fromEntity(created);
   }
 
@@ -66,7 +74,6 @@ export class FeaturesService {
     if (Object.keys(dto).length === 0) {
       throw new BadRequestException('At least one field must be provided');
     }
-    // TODO(KAN-74): invalidate cache for the affected owner
     try {
       const updated = await this.prisma.feature.update({
         where: { id },
@@ -79,6 +86,11 @@ export class FeaturesService {
           ...(dto.order !== undefined ? { order: dto.order } : {}),
         },
       });
+      const scope: 'path' | 'course' =
+        updated.ownerType === 'PATH' ? 'path' : 'course';
+      await this.cache.invalidateOwner(scope, updated.ownerId);
+      const slug = await this.cache.slugFor(scope, updated.ownerId);
+      if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
       return FeatureResponseDto.fromEntity(updated);
     } catch (err) {
       if (
@@ -92,9 +104,13 @@ export class FeaturesService {
   }
 
   async remove(id: string): Promise<void> {
-    // TODO(KAN-74): invalidate cache for the affected owner
     try {
-      await this.prisma.feature.delete({ where: { id } });
+      const deleted = await this.prisma.feature.delete({ where: { id } });
+      const scope: 'path' | 'course' =
+        deleted.ownerType === 'PATH' ? 'path' : 'course';
+      await this.cache.invalidateOwner(scope, deleted.ownerId);
+      const slug = await this.cache.slugFor(scope, deleted.ownerId);
+      if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -112,8 +128,12 @@ export class FeaturesService {
     itemIds: string[],
   ): Promise<FeatureResponseDto[]> {
     await this.ownerValidator.ensureOwnerExists(ownerType, ownerId);
-    // TODO(KAN-74): invalidate cache for the affected owner
     await this.reorderHelper.reorder('feature', ownerType, ownerId, itemIds);
+    const scope: 'path' | 'course' =
+      ownerType === 'PATH' ? 'path' : 'course';
+    await this.cache.invalidateOwner(scope, ownerId);
+    const slug = await this.cache.slugFor(scope, ownerId);
+    if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
     return this.listByOwner(ownerType, ownerId);
   }
 

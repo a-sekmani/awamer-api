@@ -6,6 +6,8 @@ import {
   PrismaClient,
   TagStatus,
 } from '@prisma/client';
+import type Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../../src/common/cache/redis.provider';
 import { prisma as testPrisma, truncateAll } from '../../schema/setup';
 import { createTestApp } from './test-app';
 
@@ -19,13 +21,18 @@ async function seedBaseCategory() {
 
 describe('GET /api/v1/tags (public)', () => {
   let app: INestApplication;
+  let redis: Redis;
 
   beforeAll(async () => {
     ({ app } = await createTestApp());
+    redis = app.get<Redis>(REDIS_CLIENT);
   });
 
   beforeEach(async () => {
     await truncateAll();
+    // Tags public list is cached with TTL=null; must clear between tests so
+    // one test doesn't read the previous test's cached response.
+    await redis.flushdb();
   });
 
   afterAll(async () => {

@@ -710,9 +710,23 @@ stub — implementing it against the real PostHog SDK is a one-file change.
 
 ### Health
 
-`GET /api/v1/health` returns `{ status: 'ok' }` and is `@Public()`. Use
-this for load-balancer health checks. The endpoint does **not** currently
-verify DB connectivity — extend `HealthController` if you need that.
+`GET /api/v1/health` is `@Public()` and returns:
+
+```json
+{
+  "status": "ok" | "degraded",
+  "database": "connected" | "disconnected",
+  "cache": "connected" | "disconnected",
+  "uptime": 12345
+}
+```
+
+- `database` reflects a live `SELECT 1` probe (500 ms timeout).
+- `cache` reflects `CacheService.isHealthy()` (Redis PING).
+- `status` degrades only when the database is unreachable; cache
+  disconnection leaves `status` at `"ok"` (cache is non-critical).
+- The endpoint always returns HTTP 200 so transient blips don't remove
+  instances from rotation.
 
 ---
 
@@ -750,6 +764,80 @@ abuse from behind shared NATs and across IP rotations.
 ### Rate limit reset
 
 Old `RateLimitedRequest` rows are deleted by a cron job (see section 18).
+
+### Redis-backed throttler storage
+
+As of KAN-74, `@nestjs/throttler` uses `@nest-lab/throttler-storage-redis`
+backed by the same Redis client the cache layer consumes. This makes
+rate-limit counters shared across App Runner instances — a single user
+cannot multiply their allowed request rate by the number of running
+processes.
+
+---
+
+## 17b. Caching (KAN-74)
+
+A global `CacheModule` under `src/common/cache/` wraps `ioredis` and
+exposes `CacheService` to every module. Cache is **non-critical**: Redis
+failures degrade silently to cache misses — they never produce HTTP 5xx.
+
+### Key conventions
+
+Cache keys follow `{scope}:{subcategory}:{identifier}`, lowercase, with
+only `[a-z0-9:-]` characters. All keys are built via helper functions in
+`src/common/cache/cache-keys.ts` — **no module constructs cache keys via
+string concatenation.** `grep` gates in CI enforce this.
+
+| Scope | Example | Helper |
+|---|---|---|
+| tags | `tags:all`, `tags:admin:all` | `CacheKeys.tags.all()` |
+| categories | `categories:all` | `CacheKeys.categories.all()` |
+| paths | `paths:list:{queryHash}`, `paths:detail:{slug}` | `CacheKeys.paths.list(hash)` |
+| courses | `courses:list:{queryHash}`, `courses:detail:{slug}` | `CacheKeys.courses.list(hash)` |
+| marketing | `marketing:features:{type}:{id}` (also `faqs`, `testimonials`) | `CacheKeys.marketing.features(type, id)` |
+
+Query-hash keys use a SHA-256 digest of the normalized params, truncated
+to 16 hex chars — order-independent.
+
+### TTL policy
+
+TTLs are declared in `CacheTTL` next to the key helpers. `null` means no
+expiry (invalidated only on mutation):
+
+| Family | TTL |
+|---|---|
+| `TAGS`, `CATEGORIES`, `DETAIL`, `MARKETING` | `null` (invalidation-only) |
+| `LIST` | 300 seconds (5 minutes) |
+
+Every `set()` call must pass a TTL sourced from `CacheTTL` — raw numeric
+literals at call sites are forbidden and gated by `grep`.
+
+### Invalidation rules
+
+- **Tag mutations** invalidate `tags:all`, `tags:admin:all`,
+  `paths:list:*`, and `courses:list:*`.
+- **`ReplaceTagAssociationsHelper`** invalidates `paths:list:*` and
+  `courses:list:*` after rewriting associations.
+- **Marketing mutations** call `CacheService.invalidateOwner(type, id)`
+  which deletes the owner's marketing caches plus the scope's
+  `{type}s:detail:*` and `{type}s:list:*` patterns.
+- Marketing mutations also best-effort notify the Next.js frontend to
+  regenerate ISR pages via `RevalidationHelper.revalidatePath`.
+  The helper is **dormant** until `FRONTEND_REVALIDATE_SECRET` is set in
+  the environment.
+
+### Local setup
+
+`docker-compose.yml` now ships Redis alongside Postgres:
+
+```bash
+docker-compose up -d
+# Redis at localhost:6379, Postgres at localhost:5432
+```
+
+Set `REDIS_URL=redis://localhost:6379` in `.env` (already in
+`.env.example`). Production uses AWS ElastiCache via `REDIS_URL=rediss://…`
+— TLS is enabled automatically when the scheme is `rediss://`.
 
 ---
 

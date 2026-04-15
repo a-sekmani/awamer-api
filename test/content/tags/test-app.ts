@@ -1,7 +1,9 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import type Redis from 'ioredis';
 import { AppModule } from '../../../src/app.module';
+import { REDIS_CLIENT } from '../../../src/common/cache/redis.provider';
 
 /**
  * Build an end-to-end test app against the `awamer_test` database using the
@@ -30,6 +32,21 @@ export async function createTestApp(): Promise<{
   );
   app.setGlobalPrefix('api/v1');
   await app.init();
+
+  // Clear Redis state left over from previous test runs. In the test environment
+  // REDIS_URL points at the local docker-compose Redis; flushdb() only wipes the
+  // current logical DB (DB 0), not the whole server. Safe because this bootstrap
+  // is only ever used by e2e specs, never by production code.
+  try {
+    const redis = app.get<Redis>(REDIS_CLIENT);
+    await redis.flushdb();
+  } catch (error) {
+    // CacheModule may not be loaded in some test setups — that's fine.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Redis flushdb skipped in test bootstrap: ${(error as Error).message}`,
+    );
+  }
 
   const jwt = app.get(JwtService);
   const token = jwt.sign({

@@ -10,6 +10,8 @@ import {
   Prisma,
   TagStatus,
 } from '@prisma/client';
+import { CacheKeys, CacheTTL } from '../../common/cache/cache-keys';
+import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TagsService } from './tags.service';
 
@@ -92,16 +94,94 @@ function makePrismaMock() {
 describe('TagsService', () => {
   let service: TagsService;
   let prisma: ReturnType<typeof makePrismaMock>;
+  let cache: {
+    get: jest.Mock;
+    set: jest.Mock;
+    del: jest.Mock;
+    delByPattern: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = makePrismaMock();
+    cache = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(true),
+      delByPattern: jest.fn().mockResolvedValue(0),
+    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TagsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: CacheService, useValue: cache },
       ],
     }).compile();
     service = module.get(TagsService);
+  });
+
+  describe('cache invalidation', () => {
+    it('listPublic reads from cache first and returns cached value on hit', async () => {
+      cache.get.mockResolvedValueOnce([{ id: 'x', name: 'y', slug: 'z', pathCount: 0, courseCount: 0 }]);
+      const result = await service.listPublic();
+      expect(cache.get).toHaveBeenCalledWith(CacheKeys.tags.all());
+      expect(result).toHaveLength(1);
+      expect(prisma.tag.findMany).not.toHaveBeenCalled();
+    });
+
+    it('listPublic falls through to DB on miss and populates cache', async () => {
+      prisma.tag.findMany.mockResolvedValue([]);
+      prisma.pathTag.groupBy.mockResolvedValue([]);
+      prisma.courseTag.groupBy.mockResolvedValue([]);
+      await service.listPublic();
+      expect(cache.set).toHaveBeenCalledWith(
+        CacheKeys.tags.all(),
+        expect.any(Array),
+        CacheTTL.TAGS,
+      );
+    });
+
+    it('create invalidates tags + paths:list + courses:list', async () => {
+      prisma.tag.create.mockResolvedValue({
+        id: 'n',
+        name: 'n',
+        slug: 'n',
+        status: TagStatus.ACTIVE,
+        createdAt: new Date(),
+      });
+      prisma.pathTag.groupBy.mockResolvedValue([]);
+      prisma.courseTag.groupBy.mockResolvedValue([]);
+      await service.create({ name: 'n', slug: 'n' });
+      expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.all());
+      expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.adminAll());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+    });
+
+    it('update invalidates tags + paths:list + courses:list', async () => {
+      prisma.tag.update.mockResolvedValue({
+        id: 't',
+        name: 'n',
+        slug: 's',
+        status: TagStatus.ACTIVE,
+        createdAt: new Date(),
+      });
+      prisma.pathTag.groupBy.mockResolvedValue([]);
+      prisma.courseTag.groupBy.mockResolvedValue([]);
+      await service.update('t', { name: 'n' });
+      expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.all());
+      expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.adminAll());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+    });
+
+    it('remove invalidates tags + paths:list + courses:list', async () => {
+      prisma.tag.delete.mockResolvedValue({});
+      await service.remove('t');
+      expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.all());
+      expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.adminAll());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+    });
   });
 
   describe('listPublic', () => {

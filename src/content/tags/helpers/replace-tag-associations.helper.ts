@@ -4,11 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, TagStatus } from '@prisma/client';
+import { CacheKeys } from '../../../common/cache/cache-keys';
+import { CacheService } from '../../../common/cache/cache.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class ReplaceTagAssociationsHelper {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async replaceForPath(pathId: string, tagIds: string[]): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
@@ -20,6 +25,9 @@ export class ReplaceTagAssociationsHelper {
         });
       }
     });
+    // FR-017a: tag-association changes affect public list filtering
+    await this.cache.delByPattern(CacheKeys.paths.listPattern());
+    await this.cache.delByPattern(CacheKeys.courses.listPattern());
   }
 
   async replaceForCourse(courseId: string, tagIds: string[]): Promise<void> {
@@ -32,6 +40,9 @@ export class ReplaceTagAssociationsHelper {
         });
       }
     });
+    // FR-017a
+    await this.cache.delByPattern(CacheKeys.paths.listPattern());
+    await this.cache.delByPattern(CacheKeys.courses.listPattern());
   }
 
   private async validateAndDedupe(

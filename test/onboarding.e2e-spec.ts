@@ -4,7 +4,9 @@ import * as request from 'supertest';
 import * as cookieParser from 'cookie-parser';
 import { JwtService } from '@nestjs/jwt';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import type Redis from 'ioredis';
 import { AppModule } from '../src/app.module';
+import { REDIS_CLIENT } from '../src/common/cache/redis.provider';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AnalyticsService } from '../src/analytics/analytics.service';
 import { UsersService } from '../src/users/users.service';
@@ -26,6 +28,7 @@ describe('Onboarding (e2e)', () => {
   let analyticsService: AnalyticsService;
   let usersService: UsersService;
   let throttlerSpy: jest.SpyInstance;
+  let redis: Redis | undefined;
 
   const TEST_EMAIL_PREFIX = 'e2e-onboarding-test';
   let testCounter = 0;
@@ -136,6 +139,12 @@ describe('Onboarding (e2e)', () => {
     jwtService = app.get(JwtService);
     analyticsService = app.get(AnalyticsService);
     usersService = app.get(UsersService);
+    try {
+      redis = app.get<Redis>(REDIS_CLIENT);
+    } catch {
+      // CacheModule not loaded in this test env — leave redis undefined.
+      redis = undefined;
+    }
   });
 
   afterAll(async () => {
@@ -920,9 +929,14 @@ describe('Onboarding (e2e)', () => {
   // ─── Group 1: Rate Limiting ──────────────────────────────────────
 
   describe('Rate Limiting', () => {
-    // Restore the real ThrottlerGuard for this group, then re-mock after
-    beforeEach(() => {
+    // Restore the real ThrottlerGuard for this group, then re-mock after.
+    // Also clear Redis so the throttler counter starts fresh per test —
+    // the Redis-backed store would otherwise carry counts across tests.
+    beforeEach(async () => {
       throttlerSpy.mockRestore();
+      if (redis) {
+        await redis.flushdb();
+      }
     });
 
     afterEach(() => {

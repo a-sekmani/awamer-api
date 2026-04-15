@@ -54,10 +54,16 @@ describe('App (e2e)', () => {
       .expect(200);
 
     // The global ResponseTransformInterceptor wraps payloads in
-    // `{ data, message: 'Success' }`. The HealthController returns
-    // `{ status: 'ok' }` which becomes the wrapper's `data`.
+    // `{ data, message: 'Success' }`. Since KAN-74, HealthController returns
+    // `{ status, database, cache, uptime }` which becomes the wrapper's `data`.
     expect(res.body).toBeDefined();
-    expect(res.body.data).toEqual({ status: 'ok' });
+    expect(res.body.data).toMatchObject({
+      status: 'ok',
+      database: 'connected',
+      cache: 'connected',
+    });
+    expect(typeof res.body.data.uptime).toBe('number');
+    expect(res.body.data.uptime).toBeGreaterThanOrEqual(0);
   });
 
   it('GET / (no prefix) returns 404 — confirms global prefix is active', async () => {

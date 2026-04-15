@@ -43,7 +43,13 @@
       "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes\" npx prisma migrate reset --force --skip-seed)",
       "Bash(yes)",
       "Bash(.specify/scripts/bash/create-new-feature.sh:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(ls -la .gitignore Dockerfile* .eslintrc* eslint.config* .prettierrc*)",
+      "Bash(npm pkg *)",
+      "Bash(head -20 test/content/tags/*.e2e-spec.ts)",
+      "Bash(echo \"---exit $?\")",
+      "Bash(ls *)",
+      "Bash(npm uninstall *)"
     ]
   }
 }

@@ -4,6 +4,8 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TagStatus } from '@prisma/client';
+import { CacheKeys } from '../../../common/cache/cache-keys';
+import { CacheService } from '../../../common/cache/cache.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ReplaceTagAssociationsHelper } from './replace-tag-associations.helper';
 
@@ -57,16 +59,35 @@ function makePrismaMock() {
 describe('ReplaceTagAssociationsHelper', () => {
   let helper: ReplaceTagAssociationsHelper;
   let prisma: ReturnType<typeof makePrismaMock>;
+  let cache: { delByPattern: jest.Mock };
 
   beforeEach(async () => {
     prisma = makePrismaMock();
+    cache = { delByPattern: jest.fn().mockResolvedValue(0) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ReplaceTagAssociationsHelper,
         { provide: PrismaService, useValue: prisma },
+        { provide: CacheService, useValue: cache },
       ],
     }).compile();
     helper = module.get(ReplaceTagAssociationsHelper);
+  });
+
+  describe('FR-017a cache invalidation', () => {
+    it('replaceForPath invalidates paths:list:* and courses:list:*', async () => {
+      prisma.tagStore.set('t1', TagStatus.ACTIVE);
+      await helper.replaceForPath('p1', ['t1']);
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+    });
+
+    it('replaceForCourse invalidates paths:list:* and courses:list:*', async () => {
+      prisma.tagStore.set('t1', TagStatus.ACTIVE);
+      await helper.replaceForCourse('c1', ['t1']);
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+    });
   });
 
   describe('replaceForPath', () => {

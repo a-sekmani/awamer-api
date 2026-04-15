@@ -2,6 +2,8 @@ import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as request from 'supertest';
 import { PrismaClient, CertificateType } from '@prisma/client';
+import type Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../src/common/cache/redis.provider';
 import { prisma as testPrisma, truncateAll } from '../schema/setup';
 import { createTestApp } from '../content/tags/test-app';
 
@@ -52,13 +54,18 @@ async function seedCtx(suffix: string) {
 
 describe('CertificatesController (e2e)', () => {
   let app: INestApplication;
+  let redis: Redis;
 
   beforeAll(async () => {
     ({ app } = await createTestApp());
+    redis = app.get<Redis>(REDIS_CLIENT);
   });
 
   beforeEach(async () => {
     await truncateAll();
+    // Redis-backed throttler counters persist across tests; reset them so the
+    // 30/60s rate limit on /certificates/verify/:code starts fresh each test.
+    await redis.flushdb();
   });
 
   afterAll(async () => {

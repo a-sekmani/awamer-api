@@ -8,6 +8,8 @@ import {
   Prisma,
   TestimonialStatus,
 } from '@prisma/client';
+import { CacheService } from '../../../common/cache/cache.service';
+import { RevalidationHelper } from '../../../common/cache/revalidation.helper';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { OwnerValidator } from '../helpers/owner-validator.helper';
 import { ReorderHelper } from '../helpers/reorder.helper';
@@ -22,6 +24,8 @@ export class TestimonialsService {
     private readonly prisma: PrismaService,
     private readonly ownerValidator: OwnerValidator,
     private readonly reorderHelper: ReorderHelper,
+    private readonly cache: CacheService,
+    private readonly revalidation: RevalidationHelper,
   ) {}
 
   private readonly orderBy: Prisma.TestimonialOrderByWithRelationInput[] = [
@@ -47,7 +51,6 @@ export class TestimonialsService {
     dto: CreateTestimonialDto,
   ): Promise<TestimonialResponseDto> {
     await this.ownerValidator.ensureOwnerExists(ownerType, ownerId);
-    // TODO(KAN-74): invalidate cache for the affected owner
     const order = dto.order ?? (await this.nextOrder(ownerType, ownerId));
     const created = await this.prisma.testimonial.create({
       data: {
@@ -63,6 +66,11 @@ export class TestimonialsService {
         status: TestimonialStatus.PENDING,
       },
     });
+    const scope: 'path' | 'course' =
+      ownerType === 'PATH' ? 'path' : 'course';
+    await this.cache.invalidateOwner(scope, ownerId);
+    const slug = await this.cache.slugFor(scope, ownerId);
+    if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
     return TestimonialResponseDto.fromEntity(created);
   }
 
@@ -73,7 +81,6 @@ export class TestimonialsService {
     if (Object.keys(dto).length === 0) {
       throw new BadRequestException('At least one field must be provided');
     }
-    // TODO(KAN-74): invalidate cache for the affected owner
     try {
       const updated = await this.prisma.testimonial.update({
         where: { id },
@@ -90,6 +97,11 @@ export class TestimonialsService {
           ...(dto.order !== undefined ? { order: dto.order } : {}),
         },
       });
+      const scope: 'path' | 'course' =
+        updated.ownerType === 'PATH' ? 'path' : 'course';
+      await this.cache.invalidateOwner(scope, updated.ownerId);
+      const slug = await this.cache.slugFor(scope, updated.ownerId);
+      if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
       return TestimonialResponseDto.fromEntity(updated);
     } catch (err) {
       if (
@@ -106,12 +118,16 @@ export class TestimonialsService {
     id: string,
     dto: UpdateTestimonialStatusDto,
   ): Promise<TestimonialResponseDto> {
-    // TODO(KAN-74): invalidate cache for the affected owner
     try {
       const updated = await this.prisma.testimonial.update({
         where: { id },
         data: { status: dto.status },
       });
+      const scope: 'path' | 'course' =
+        updated.ownerType === 'PATH' ? 'path' : 'course';
+      await this.cache.invalidateOwner(scope, updated.ownerId);
+      const slug = await this.cache.slugFor(scope, updated.ownerId);
+      if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
       return TestimonialResponseDto.fromEntity(updated);
     } catch (err) {
       if (
@@ -125,9 +141,13 @@ export class TestimonialsService {
   }
 
   async remove(id: string): Promise<void> {
-    // TODO(KAN-74): invalidate cache for the affected owner
     try {
-      await this.prisma.testimonial.delete({ where: { id } });
+      const deleted = await this.prisma.testimonial.delete({ where: { id } });
+      const scope: 'path' | 'course' =
+        deleted.ownerType === 'PATH' ? 'path' : 'course';
+      await this.cache.invalidateOwner(scope, deleted.ownerId);
+      const slug = await this.cache.slugFor(scope, deleted.ownerId);
+      if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -145,13 +165,17 @@ export class TestimonialsService {
     itemIds: string[],
   ): Promise<TestimonialResponseDto[]> {
     await this.ownerValidator.ensureOwnerExists(ownerType, ownerId);
-    // TODO(KAN-74): invalidate cache for the affected owner
     await this.reorderHelper.reorder(
       'testimonial',
       ownerType,
       ownerId,
       itemIds,
     );
+    const scope: 'path' | 'course' =
+      ownerType === 'PATH' ? 'path' : 'course';
+    await this.cache.invalidateOwner(scope, ownerId);
+    const slug = await this.cache.slugFor(scope, ownerId);
+    if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
     return this.listByOwner(ownerType, ownerId);
   }
 

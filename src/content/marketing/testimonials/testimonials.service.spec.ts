@@ -5,6 +5,8 @@ import {
   Prisma,
   TestimonialStatus,
 } from '@prisma/client';
+import { CacheService } from '../../../common/cache/cache.service';
+import { RevalidationHelper } from '../../../common/cache/revalidation.helper';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { OwnerValidator } from '../helpers/owner-validator.helper';
 import { ReorderHelper } from '../helpers/reorder.helper';
@@ -55,6 +57,8 @@ describe('TestimonialsService', () => {
   };
   let ownerValidator: { ensureOwnerExists: jest.Mock };
   let reorderHelper: { reorder: jest.Mock };
+  let cache: { invalidateOwner: jest.Mock; slugFor: jest.Mock };
+  let revalidation: { revalidatePath: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -68,6 +72,11 @@ describe('TestimonialsService', () => {
     };
     ownerValidator = { ensureOwnerExists: jest.fn().mockResolvedValue(undefined) };
     reorderHelper = { reorder: jest.fn().mockResolvedValue(undefined) };
+    cache = {
+      invalidateOwner: jest.fn().mockResolvedValue(undefined),
+      slugFor: jest.fn().mockResolvedValue('some-slug'),
+    };
+    revalidation = { revalidatePath: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -75,9 +84,51 @@ describe('TestimonialsService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: OwnerValidator, useValue: ownerValidator },
         { provide: ReorderHelper, useValue: reorderHelper },
+        { provide: CacheService, useValue: cache },
+        { provide: RevalidationHelper, useValue: revalidation },
       ],
     }).compile();
     service = moduleRef.get(TestimonialsService);
+  });
+
+  describe('cache invalidation (FR-018)', () => {
+    it('create calls invalidateOwner and revalidatePath', async () => {
+      prisma.testimonial.findFirst.mockResolvedValue(null);
+      prisma.testimonial.create.mockResolvedValue(row('new', 0));
+      await service.create(MarketingOwnerType.PATH, 'p1', {
+        authorName: 'a',
+        content: 'c',
+      });
+      expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+    });
+
+    it('update calls invalidateOwner and revalidatePath', async () => {
+      prisma.testimonial.update.mockResolvedValue(row('u', 0));
+      await service.update('u', { content: 'updated' });
+      expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
+    });
+
+    it('updateStatus calls invalidateOwner and revalidatePath', async () => {
+      prisma.testimonial.update.mockResolvedValue(
+        row('u', 0, TestimonialStatus.APPROVED),
+      );
+      await service.updateStatus('u', { status: TestimonialStatus.APPROVED });
+      expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+    });
+
+    it('remove calls invalidateOwner and revalidatePath', async () => {
+      prisma.testimonial.delete.mockResolvedValue(row('d', 0));
+      await service.remove('d');
+      expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
+    });
+
+    it('reorder calls invalidateOwner and revalidatePath', async () => {
+      prisma.testimonial.findMany.mockResolvedValue([]);
+      await service.reorder(MarketingOwnerType.PATH, 'p1', []);
+      expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
+    });
   });
 
   it('lists with orderBy [order asc, createdAt asc] and returns all statuses', async () => {

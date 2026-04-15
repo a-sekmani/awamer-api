@@ -2,12 +2,16 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { ScheduleModule } from '@nestjs/schedule';
+import Redis from 'ioredis';
 import * as Joi from 'joi';
 import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { HealthModule } from './health/health.module';
+import { CacheModule } from './common/cache/cache.module';
+import { REDIS_CLIENT } from './common/cache/redis.provider';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
 import { PrismaModule } from './prisma/prisma.module';
@@ -50,19 +54,28 @@ import { EnrollmentModule } from './enrollment/enrollment.module';
         PORT: Joi.number().default(3001),
         THROTTLE_TTL: Joi.number().default(60000),
         THROTTLE_LIMIT: Joi.number().default(100),
+        REDIS_URL: Joi.string()
+          .uri({ scheme: ['redis', 'rediss'] })
+          .default('redis://localhost:6379'),
+        FRONTEND_REVALIDATE_SECRET: Joi.string().allow('').optional(),
       }),
     }),
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => [
-        {
-          ttl: config.get<number>('THROTTLE_TTL', 60000),
-          limit: config.get<number>('THROTTLE_LIMIT', 100),
-        },
-      ],
+      imports: [CacheModule],
+      inject: [ConfigService, REDIS_CLIENT],
+      useFactory: (config: ConfigService, redis: Redis) => ({
+        throttlers: [
+          {
+            ttl: config.get<number>('THROTTLE_TTL', 60000),
+            limit: config.get<number>('THROTTLE_LIMIT', 100),
+          },
+        ],
+        storage: new ThrottlerStorageRedisService(redis),
+      }),
     }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    CacheModule,
     AuthModule,
     TasksModule,
     HealthModule,

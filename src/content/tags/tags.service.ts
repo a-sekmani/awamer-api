@@ -11,6 +11,8 @@ import {
   Tag,
   TagStatus,
 } from '@prisma/client';
+import { CacheKeys, CacheTTL } from '../../common/cache/cache-keys';
+import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
@@ -21,16 +23,24 @@ type CountMap = Map<string, number>;
 
 @Injectable()
 export class TagsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async listPublic(): Promise<TagResponseDto[]> {
-    // TODO(KAN-74): wire CacheService here — cache key 'tags:public:list'
+    const cached = await this.cache.get<TagResponseDto[]>(CacheKeys.tags.all());
+    if (cached !== null) return cached;
     const tags = await this.prisma.tag.findMany({
       where: { status: TagStatus.ACTIVE },
       orderBy: { name: 'asc' },
     });
     const { pathCounts, courseCounts } = await this.loadCounts();
-    return tags.map((tag) => this.toPublicDto(tag, pathCounts, courseCounts));
+    const dto = tags.map((tag) =>
+      this.toPublicDto(tag, pathCounts, courseCounts),
+    );
+    await this.cache.set(CacheKeys.tags.all(), dto, CacheTTL.TAGS);
+    return dto;
   }
 
   async listAdmin(): Promise<AdminTagResponseDto[]> {
@@ -42,7 +52,10 @@ export class TagsService {
   }
 
   async create(dto: CreateTagDto): Promise<AdminTagResponseDto> {
-    // TODO(KAN-74): invalidate CacheService key 'tags:public:list' here
+    await this.cache.del(CacheKeys.tags.all());
+    await this.cache.del(CacheKeys.tags.adminAll());
+    await this.cache.delByPattern(CacheKeys.paths.listPattern());
+    await this.cache.delByPattern(CacheKeys.courses.listPattern());
     try {
       const tag = await this.prisma.tag.create({
         data: {
@@ -70,7 +83,10 @@ export class TagsService {
     if (Object.keys(dto).length === 0) {
       throw new BadRequestException('At least one field must be provided');
     }
-    // TODO(KAN-74): invalidate CacheService key 'tags:public:list' here
+    await this.cache.del(CacheKeys.tags.all());
+    await this.cache.del(CacheKeys.tags.adminAll());
+    await this.cache.delByPattern(CacheKeys.paths.listPattern());
+    await this.cache.delByPattern(CacheKeys.courses.listPattern());
     try {
       const tag = await this.prisma.tag.update({
         where: { id },
@@ -98,7 +114,10 @@ export class TagsService {
   }
 
   async remove(id: string): Promise<void> {
-    // TODO(KAN-74): invalidate CacheService key 'tags:public:list' here
+    await this.cache.del(CacheKeys.tags.all());
+    await this.cache.del(CacheKeys.tags.adminAll());
+    await this.cache.delByPattern(CacheKeys.paths.listPattern());
+    await this.cache.delByPattern(CacheKeys.courses.listPattern());
     try {
       await this.prisma.tag.delete({ where: { id } });
     } catch (err) {
