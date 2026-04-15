@@ -49,7 +49,8 @@
       "Bash(head -20 test/content/tags/*.e2e-spec.ts)",
       "Bash(echo \"---exit $?\")",
       "Bash(ls *)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(perl -i -pe 's/^- \\\\[ \\\\] T0/- [X] T0/' specs/013-public-discovery/tasks.md)"
     ]
   }
 }

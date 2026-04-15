@@ -16,7 +16,6 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
-import { PathsModule } from './paths/paths.module';
 import { LessonsModule } from './lessons/lessons.module';
 import { ProgressModule } from './progress/progress.module';
 import { QuizzesModule } from './quizzes/quizzes.module';
@@ -80,7 +79,6 @@ import { EnrollmentModule } from './enrollment/enrollment.module';
     TasksModule,
     HealthModule,
     UsersModule,
-    PathsModule,
     LessonsModule,
     ProgressModule,
     QuizzesModule,

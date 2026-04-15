@@ -193,9 +193,10 @@ PORT=3001
 - certificate_issued
 
 ## Recent Changes
+- 013-public-discovery: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, ioredis (via `CacheService`), class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5 — **all already installed**, no new deps
 - 012-redis-cache-module: Added TypeScript 5.9 on Node.js 20 LTS
 - 011-enrollment-certificates: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, Passport JWT, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5, @nestjs/jwt, cookie-parser (all already in project — **no new deps**)
-- 010-marketing-content: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5, Passport JWT (all already in project)
 
 ## Active Technologies
-- Redis 7 (local via Docker Compose `redis:7-alpine`; production via AWS ElastiCache — provisioning out of scope). Postgres unchanged. (012-redis-cache-module)
+- TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, ioredis (via `CacheService`), class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5 — **all already installed**, no new deps (013-public-discovery)
+- PostgreSQL via Prisma; Redis 7 via the existing `CacheService` (013-public-discovery)
