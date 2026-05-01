@@ -132,7 +132,7 @@ describe('toPathDetailDto', () => {
     expect(dto.path.skills).toEqual(['python']);
     expect(dto.curriculum).toHaveLength(1);
     expect(dto.curriculum[0].sections).toHaveLength(1);
-    expect(dto.curriculum[0].sections[0].lessons).toHaveLength(1);
+    expect(dto.curriculum[0].sections[0].totalDurationMinutes).toBe(10);
   });
 
   it('flips requiresAwamerPlus to false when path.isFree=true', () => {

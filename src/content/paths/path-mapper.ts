@@ -21,12 +21,7 @@ type CategoryRow = { id: string; name: string; slug: string };
 type TagRow = { id: string; name: string; slug: string };
 type TagJoinRow = { tag: TagRow };
 type LessonRow = {
-  id: string;
-  title: string;
-  type: string;
-  order: number;
   estimatedMinutes: number | null;
-  isFree: boolean;
 };
 type SectionRow = {
   id: string;
@@ -40,7 +35,6 @@ type CourseRow = {
   order: number | null;
   title: string;
   subtitle: string | null;
-  description: string | null;
   isFree: boolean;
   sections: SectionRow[];
   _count?: { projects?: number };
@@ -51,6 +45,7 @@ type PathRow = {
   title: string;
   subtitle: string | null;
   description: string | null;
+  featuresIntro: string | null;
   level: string | null;
   thumbnail: string | null;
   promoVideoUrl: string | null;
@@ -114,43 +109,26 @@ export function toPathDetailDto(
       ? { url: path.promoVideoUrl, thumbnail: path.promoVideoThumbnail }
       : null;
 
-  const curriculum = path.courses.map((course) => {
-    let courseLessonCount = 0;
-    let courseDuration = 0;
-    for (const section of course.sections) {
-      courseLessonCount += section.lessons.length;
+  const curriculum = path.courses.map((course) => ({
+    id: course.id,
+    slug: course.slug,
+    order: course.order ?? 0,
+    title: course.title,
+    subtitle: course.subtitle,
+    isFree: course.isFree,
+    sections: course.sections.map((section) => {
+      let totalDurationMinutes = 0;
       for (const lesson of section.lessons) {
-        courseDuration += lesson.estimatedMinutes ?? 0;
+        totalDurationMinutes += lesson.estimatedMinutes ?? 0;
       }
-    }
-    return {
-      id: course.id,
-      slug: course.slug,
-      order: course.order ?? 0,
-      title: course.title,
-      subtitle: course.subtitle,
-      description: course.description,
-      isFree: course.isFree,
-      stats: {
-        sectionCount: course.sections.length,
-        lessonCount: courseLessonCount,
-        totalDurationMinutes: courseDuration,
-      },
-      sections: course.sections.map((section) => ({
+      return {
         id: section.id,
         title: section.title,
         order: section.order,
-        lessons: section.lessons.map((lesson) => ({
-          id: lesson.id,
-          title: lesson.title,
-          type: lesson.type,
-          order: lesson.order,
-          estimatedMinutes: lesson.estimatedMinutes,
-          isFree: lesson.isFree,
-        })),
-      })),
-    };
-  });
+        totalDurationMinutes,
+      };
+    }),
+  }));
 
   return {
     path: {
@@ -159,6 +137,7 @@ export function toPathDetailDto(
       title: path.title,
       subtitle: path.subtitle,
       description: path.description,
+      featuresIntro: path.featuresIntro,
       level: normalizeLevel(path.level),
       thumbnail: path.thumbnail,
       promoVideo,

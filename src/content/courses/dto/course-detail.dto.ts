@@ -8,10 +8,24 @@ import {
   CertificateDto,
   FaqDto,
   FeatureDto,
-  PathLessonDto,
-  PathSectionDto,
   TestimonialDto,
 } from '../../paths/dto/path-detail.dto';
+
+export class CourseLessonDto {
+  id!: string;
+  title!: string;
+  type!: string;
+  order!: number;
+  estimatedMinutes!: number | null;
+  isFree!: boolean;
+}
+
+export class CourseSectionDto {
+  id!: string;
+  title!: string;
+  order!: number;
+  lessons!: CourseLessonDto[];
+}
 
 export class CourseDetailStatsDto {
   sectionCount!: number;
@@ -26,6 +40,7 @@ export class CourseCoreDto {
   title!: string;
   subtitle!: string | null;
   description!: string | null;
+  featuresIntro!: string | null;
   level!: CourseLevelFilter | null;
   thumbnail!: string | null;
   isFree!: boolean;
@@ -41,11 +56,11 @@ export class CourseCoreDto {
 
 export class CourseDetailDto {
   course!: CourseCoreDto;
-  curriculum!: PathSectionDto[];
+  curriculum!: CourseSectionDto[];
   features!: FeatureDto[];
   faqs!: FaqDto[];
   testimonials!: TestimonialDto[];
 }
 
-// Re-export shared types so consumers don't reach across DTO directories.
-export { FaqDto, FeatureDto, PathLessonDto, PathSectionDto, TestimonialDto };
+// Re-export shared marketing types so consumers don't reach across DTO directories.
+export { FaqDto, FeatureDto, TestimonialDto };

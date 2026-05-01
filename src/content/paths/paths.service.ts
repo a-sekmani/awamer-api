@@ -130,7 +130,12 @@ export class PathsService {
           include: {
             sections: {
               orderBy: { order: 'asc' },
-              include: { lessons: { orderBy: { order: 'asc' } } },
+              include: {
+                lessons: {
+                  orderBy: { order: 'asc' },
+                  select: { estimatedMinutes: true, isFree: true },
+                },
+              },
             },
             _count: { select: { projects: true } },
           },

@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+generator erd {
+  provider                  = "prisma-erd-generator"
+  output                    = "./ERD.svg"
+  theme                     = "forest"
+  includeRelationFromFields = true
+}
+
 // ========================================================================
 // Awamer Data Model v6 — schema.prisma
 //
@@ -356,6 +363,7 @@ model Path {
   slug                String     @unique
   subtitle            String?
   description         String?
+  featuresIntro       String?
   level               String?
   thumbnail           String?
   promoVideoUrl       String?
@@ -385,11 +393,12 @@ model Course {
   id          String       @id @default(uuid())
   categoryId  String
   pathId      String?
-  slug        String       @unique
-  title       String
-  subtitle    String?
-  description String?
-  level       CourseLevel?
+  slug          String       @unique
+  title         String
+  subtitle      String?
+  description   String?
+  featuresIntro String?
+  level         CourseLevel?
   thumbnail   String?
   isNew       Boolean      @default(false)
   skills      Json         @default("[]")

@@ -223,16 +223,6 @@ describe('PathsService', () => {
       );
     });
 
-    it('isFree=true → all nested lessons get isFree=true in DTO', async () => {
-      cache.get.mockResolvedValue(null);
-      prisma.path.findUnique.mockResolvedValue(fakePathRow({ isFree: true }));
-      const result = await service.findDetailBySlug('s');
-      const allFree = result.curriculum.every((c) =>
-        c.sections.every((s) => s.lessons.every((l) => l.isFree)),
-      );
-      expect(allFree).toBe(true);
-    });
-
     it('certificate built via buildPathCertificate (mirrors path.isFree)', async () => {
       cache.get.mockResolvedValue(null);
       prisma.path.findUnique.mockResolvedValue(fakePathRow({ isFree: false }));

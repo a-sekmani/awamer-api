@@ -32,12 +32,6 @@ export class PathSectionDto {
   id!: string;
   title!: string;
   order!: number;
-  lessons!: PathLessonDto[];
-}
-
-export class CourseInPathStatsDto {
-  sectionCount!: number;
-  lessonCount!: number;
   totalDurationMinutes!: number;
 }
 
@@ -47,9 +41,7 @@ export class CourseInPathDto {
   order!: number;
   title!: string;
   subtitle!: string | null;
-  description!: string | null;
   isFree!: boolean;
-  stats!: CourseInPathStatsDto;
   sections!: PathSectionDto[];
 }
 
@@ -84,6 +76,7 @@ export class PathCoreDto {
   title!: string;
   subtitle!: string | null;
   description!: string | null;
+  featuresIntro!: string | null;
   level!: PathLevel | null;
   thumbnail!: string | null;
   promoVideo!: PromoVideoDto | null;

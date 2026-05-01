@@ -1,0 +1,113 @@
+openapi: 3.0.3
+info:
+  title: Awamer API — Admin Foundation Test Route
+  version: 0.1.0
+  description: |
+    Test route shipped by feature 014-admin-foundation (KAN-78). This endpoint exists
+    purely to validate the admin foundation stack end-to-end (JwtAuthGuard → RolesGuard →
+    AuditLogInterceptor → controller → ResponseTransformInterceptor). It is not a
+    product-facing endpoint.
+
+servers:
+  - url: http://localhost:3001/api/v1
+    description: Local dev
+
+paths:
+  /admin/__ping:
+    get:
+      summary: Health/ping for admin foundation wiring
+      description: |
+        Returns a static `{ ok: true }` payload wrapped in the platform-wide success
+        envelope. Requires a valid JWT AND the `ADMIN` role (uppercase, matching the
+        Prisma `Role` enum's TypeScript values written into JWT payloads).
+      tags: [Admin]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Admin reached the controller body. Audit log NOT emitted (GET).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+              examples:
+                ok:
+                  value:
+                    data:
+                      ok: true
+                    message: Success
+        '401':
+          description: No JWT or invalid/expired JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                no_token:
+                  value:
+                    statusCode: 401
+                    message: Unauthorized
+                invalid_token:
+                  value:
+                    statusCode: 401
+                    message: Unauthorized
+        '403':
+          description: Authenticated, but the user does not hold the `ADMIN` role.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                non_admin:
+                  value:
+                    statusCode: 403
+                    errorCode: INSUFFICIENT_ROLE
+                    message: Admin role required.
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: HTTP-only JWT cookie issued by /auth/login.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [data, message]
+      properties:
+        data:
+          description: |
+            Endpoint-specific payload. For /admin/__ping this is `{ ok: true }`.
+          type: object
+        message:
+          type: string
+          example: Success
+      additionalProperties: false
+
+    ErrorResponse:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode:
+          type: integer
+          example: 403
+        errorCode:
+          type: string
+          description: Stable, machine-readable code from `ErrorCode` enum.
+          example: INSUFFICIENT_ROLE
+        message:
+          type: string
+          example: Admin role required.
+        errors:
+          description: Field-level validation messages (present on validation failures).
+          type: array
+          items:
+            type: string
+      additionalProperties: true

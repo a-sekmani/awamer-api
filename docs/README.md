@@ -18,6 +18,7 @@ background.
 |------|---------|
 | [api-conventions.md](./api-conventions.md) | Response/error envelopes, JWT cookies, guards, throttler, pagination, validation pipe, transactional writes |
 | [error-codes.md](./error-codes.md) | Full `ErrorCode` enum catalog with HTTP statuses and thrower methods |
+| [admin-foundation.md](./admin-foundation.md) | Admin module foundation (KAN-78): `RolesGuard` activation, `@Roles` decorator, role-string conventions, `ReorderItemsDto`, audit log skeleton, sub-module registration pattern |
 | [development/testing.md](./development/testing.md) | Jest configurations, test npm scripts, Redis-state and reflect-metadata footguns |
 
 ---

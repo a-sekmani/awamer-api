@@ -193,10 +193,10 @@ PORT=3001
 - certificate_issued
 
 ## Recent Changes
+- 014-admin-foundation: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, `@nestjs/passport` + `passport-jwt` (existing JWT auth), `class-validator` 0.15, `class-transformer` 0.5, `reflect-metadata`, RxJS 7. No new dependencies — all required libraries are already installed.
 - 013-public-discovery: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, ioredis (via `CacheService`), class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5 — **all already installed**, no new deps
 - 012-redis-cache-module: Added TypeScript 5.9 on Node.js 20 LTS
-- 011-enrollment-certificates: Added TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, Passport JWT, class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5, @nestjs/jwt, cookie-parser (all already in project — **no new deps**)
 
 ## Active Technologies
-- TypeScript 5.9 on Node.js 20 LTS + NestJS 11, Prisma 6.19, ioredis (via `CacheService`), class-validator 0.15, class-transformer 0.5, @nestjs/throttler 6.5 — **all already installed**, no new deps (013-public-discovery)
-- PostgreSQL via Prisma; Redis 7 via the existing `CacheService` (013-public-discovery)
+- TypeScript 5.9 on Node.js 20 LTS + NestJS 11, `@nestjs/passport` + `passport-jwt` (existing JWT auth), `class-validator` 0.15, `class-transformer` 0.5, `reflect-metadata`, RxJS 7. No new dependencies — all required libraries are already installed. (014-admin-foundation)
+- N/A for this feature. (Audit log persistence is explicitly out of scope; entries go to the application logger only.) (014-admin-foundation)

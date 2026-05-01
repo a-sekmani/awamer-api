@@ -8,9 +8,9 @@ import { CourseLevelFilter } from './dto/list-courses.query.dto';
 import {
   CourseDetailDto,
   CourseCoreDto,
+  CourseSectionDto,
   FaqDto,
   FeatureDto,
-  PathSectionDto,
   TestimonialDto,
 } from './dto/course-detail.dto';
 import { CourseSummaryDto } from './dto/course-summary.dto';
@@ -51,6 +51,7 @@ type CourseRow = {
   title: string;
   subtitle: string | null;
   description: string | null;
+  featuresIntro: string | null;
   level: string | null;
   thumbnail: string | null;
   isFree: boolean;
@@ -122,7 +123,7 @@ export function toCourseDetailDto(
   },
   stats: CourseStats,
 ): CourseDetailDto {
-  const curriculum: PathSectionDto[] = course.sections.map((section) => ({
+  const curriculum: CourseSectionDto[] = course.sections.map((section) => ({
     id: section.id,
     title: section.title,
     order: section.order,
@@ -142,6 +143,7 @@ export function toCourseDetailDto(
     title: course.title,
     subtitle: course.subtitle,
     description: course.description,
+    featuresIntro: course.featuresIntro,
     level: lowercaseLevel(course.level),
     thumbnail: course.thumbnail,
     isFree: course.isFree,
