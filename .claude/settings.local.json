@@ -58,7 +58,10 @@
       "mcp__claude-peers__check_messages",
       "Bash(.specify/scripts/bash/check-prerequisites.sh *)",
       "Bash(awk '{print $3, $4, $5}')",
-      "Bash(awk '{ for\\(i=1;i<=6;i++\\) printf \"%s \",$i; print \"\" }')"
+      "Bash(awk '{ for\\(i=1;i<=6;i++\\) printf \"%s \",$i; print \"\" }')",
+      "Bash(sed -n '38,43p' /Users/ahmadsekmani/Desktop/Projects/awamer-api/src/common/guards/roles.guard.ts)",
+      "Bash(sed -n '91p' /Users/ahmadsekmani/Desktop/Projects/awamer-api/test/admin.e2e-spec.ts)",
+      "Bash(sed -n '160,173p' /Users/ahmadsekmani/Desktop/Projects/awamer-api/test/admin.e2e-spec.ts)"
     ]
   }
 }

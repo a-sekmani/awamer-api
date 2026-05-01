@@ -18,7 +18,6 @@ background.
 |------|---------|
 | [api-conventions.md](./api-conventions.md) | Response/error envelopes, JWT cookies, guards, throttler, pagination, validation pipe, transactional writes |
 | [error-codes.md](./error-codes.md) | Full `ErrorCode` enum catalog with HTTP statuses and thrower methods |
-| [admin-foundation.md](./admin-foundation.md) | Admin module foundation (KAN-78): `RolesGuard` activation, `@Roles` decorator, role-string conventions, `ReorderItemsDto`, audit log skeleton, sub-module registration pattern |
 | [development/testing.md](./development/testing.md) | Jest configurations, test npm scripts, Redis-state and reflect-metadata footguns |
 
 ---
@@ -40,6 +39,7 @@ background.
 | [progress/](./progress/) | `ProgressService` helper class (no HTTP surface) |
 | [certificates/](./certificates/) | List/verify endpoints; dual-level issuance flow |
 | [content-discovery/](./content-discovery/) | Public discovery: categories, paths, courses |
+| [admin/](./admin/) | Admin foundation (KAN-78): `@AdminEndpoint()` composite decorator, `RolesGuard`, `AuditLogInterceptor`, shared `ReorderItemsDto`, role-string conventions, sub-module registration pattern, the `/admin/__ping` smoke test |
 
 ---
 
@@ -84,10 +84,14 @@ one endpoint:
 - **Never invent.** Every method name, constant, error
   message, and field must be verbatim from the source file it
   cites.
-- **Never reference line numbers.** Refer to methods by name
-  (`AuthService.sendVerificationCode()` in
-  `src/auth/auth.service.ts`) so the reference survives
-  refactors.
+- **Line numbers must travel with a symbol anchor.** A line
+  range or `:N` reference is fine when paired with a method,
+  class, or constant name (`AuthService.register()` in
+  `src/auth/auth.service.ts` around lines 56–133;
+  `MUTATING_METHODS` at `audit-log.interceptor.ts:12`). Bare
+  line numbers without a symbol anchor are forbidden — they
+  rot silently when surrounding code shifts. When in doubt,
+  prefer the symbol name and drop the number.
 - **Update instead of duplicating.** When a rule changes, fix
   the one doc that states it (usually `api-conventions.md` or
   `schema/conventions.md`) and leave the endpoint docs linking
