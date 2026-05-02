@@ -72,13 +72,32 @@ export class HttpExceptionFilter implements ExceptionFilter {
         body.errors = errors;
       }
 
+      // Pass through object-shaped `errors` payloads from exceptions (e.g.
+      // CATEGORY_IN_USE → { pathCount, courseCount }). The legacy
+      // array-from-`message` path above takes precedence.
+      if (
+        body.errors === undefined &&
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null
+      ) {
+        const respErrors = (exceptionResponse as Record<string, unknown>)
+          .errors;
+        if (
+          respErrors !== null &&
+          respErrors !== undefined &&
+          typeof respErrors === 'object' &&
+          !Array.isArray(respErrors)
+        ) {
+          body.errors = respErrors;
+        }
+      }
+
       response.status(status).json(body);
     } else {
       // Non-HTTP exceptions: log the real error, return generic response
       const errorMessage =
         exception instanceof Error ? exception.message : String(exception);
-      const stack =
-        exception instanceof Error ? exception.stack : undefined;
+      const stack = exception instanceof Error ? exception.stack : undefined;
       this.logger.error(`Unhandled exception: ${errorMessage}`, stack);
 
       response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({

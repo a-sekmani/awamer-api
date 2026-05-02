@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -216,7 +217,9 @@ describe('HttpExceptionFilter', () => {
     it('should hide internal error details from the response', () => {
       const res = createMockResponse();
       const host = createMockHost(res);
-      const exception = new Error('Database connection refused at 192.168.1.1:5432');
+      const exception = new Error(
+        'Database connection refused at 192.168.1.1:5432',
+      );
 
       filter.catch(exception, host);
 
@@ -318,6 +321,108 @@ describe('HttpExceptionFilter', () => {
       filter.catch(exception, host);
 
       expect(res.setHeader).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===========================================================================
+  // Object-shaped `errors` passthrough (KAN-82 — benefits all per-entity admin)
+  // ===========================================================================
+  describe('object-shaped errors passthrough', () => {
+    it('passes through object-shaped errors (e.g. { pathCount, courseCount })', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new ConflictException({
+        errorCode: ErrorCode.CATEGORY_IN_USE,
+        message: 'Category is in use',
+        errors: { pathCount: 2, courseCount: 5 },
+      });
+
+      filter.catch(exception, host);
+
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          statusCode: 409,
+          errorCode: ErrorCode.CATEGORY_IN_USE,
+          message: 'Category is in use',
+          errors: { pathCount: 2, courseCount: 5 },
+        }),
+      );
+    });
+
+    it('[regression] still produces array errors from message-array (validation flow)', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new BadRequestException({
+        message: ['name must be a string', 'slug must match pattern'],
+      });
+
+      filter.catch(exception, host);
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.errors).toEqual([
+        'name must be a string',
+        'slug must match pattern',
+      ]);
+      expect(jsonCall.errorCode).toBe(ErrorCode.VALIDATION_FAILED);
+    });
+
+    it('does not pass through null errors', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new ConflictException({
+        errorCode: 'X',
+        message: 'm',
+        errors: null,
+      });
+
+      filter.catch(exception, host);
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall).not.toHaveProperty('errors');
+    });
+
+    it('does not pass through undefined errors', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new ConflictException({
+        errorCode: 'X',
+        message: 'm',
+      });
+
+      filter.catch(exception, host);
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall).not.toHaveProperty('errors');
+    });
+
+    it('does not pass through primitive errors', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new ConflictException({
+        errorCode: 'X',
+        message: 'm',
+        errors: 'a string',
+      });
+
+      filter.catch(exception, host);
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall).not.toHaveProperty('errors');
+    });
+
+    it('array errors from message win when both shapes present', () => {
+      const res = createMockResponse();
+      const host = createMockHost(res);
+      const exception = new BadRequestException({
+        message: ['v1'],
+        errors: { foo: 1 },
+      });
+
+      filter.catch(exception, host);
+
+      const jsonCall = res.json.mock.calls[0][0];
+      expect(jsonCall.errors).toEqual(['v1']);
     });
   });
 });

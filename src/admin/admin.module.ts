@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { CategoriesAdminModule } from './categories/categories-admin.module';
 import { AdminHealthController } from './controllers/admin-health.controller';
 import { AuditLogInterceptor } from './interceptors/audit-log.interceptor';
 
@@ -19,7 +20,7 @@ import { AuditLogInterceptor } from './interceptors/audit-log.interceptor';
  * See `docs/admin-foundation.md` and `specs/014-admin-foundation/quickstart.md`.
  */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, CategoriesAdminModule],
   controllers: [AdminHealthController],
   providers: [RolesGuard, AuditLogInterceptor],
   exports: [RolesGuard, AuditLogInterceptor],

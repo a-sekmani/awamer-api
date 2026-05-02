@@ -140,9 +140,6 @@ async function seedCategories(): Promise<void> {
         id: FIXTURE.categories.ai,
         name: 'الذكاء الاصطناعي وعلم البيانات',
         slug: 'artificial-intelligence',
-        description:
-          'كل ما يتعلق بالذكاء الاصطناعي، تعلّم الآلة، وتحليل البيانات — من الأساسيات إلى التطبيقات المتقدّمة.',
-        icon: 'Cpu',
         order: 1,
         status: CategoryStatus.ACTIVE,
       },
@@ -150,8 +147,6 @@ async function seedCategories(): Promise<void> {
         id: FIXTURE.categories.software,
         name: 'تطوير البرمجيات',
         slug: 'software-development',
-        description: 'مسارات ودورات في هندسة البرمجيات والتطوير الحديث.',
-        icon: 'Code02',
         order: 2,
         status: CategoryStatus.ACTIVE,
       },

@@ -1,0 +1,314 @@
+openapi: 3.0.3
+info:
+  title: Awamer Admin Categories API
+  version: 1.0.0
+  description: |
+    Admin CRUD over the Category entity (KAN-82). All endpoints require an
+    authenticated user with the ADMIN role; anonymous → 401, learner → 403
+    INSUFFICIENT_ROLE. Mutations emit one structured audit log entry per
+    success (no entry on failure or on GETs). Successful mutations invalidate
+    the public categories cache key (`categories:all`) before responding.
+
+servers:
+  - url: http://localhost:3001/api/v1
+    description: Local dev
+  - url: https://api.awamer.com/api/v1
+    description: Production (post KAN-68)
+
+tags:
+  - name: admin-categories
+
+paths:
+  /admin/categories:
+    post:
+      tags: [admin-categories]
+      summary: Create a category
+      operationId: createAdminCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCategoryDto' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/CategoryAdminResponse' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientRole' }
+        '409':
+          description: Conflict — name or slug already exists
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CategoryNameExists'
+                  - $ref: '#/components/schemas/CategorySlugExists'
+
+    get:
+      tags: [admin-categories]
+      summary: List categories (admin)
+      operationId: listAdminCategories
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: search
+          description: Case-insensitive substring against `name` and `slug`.
+          schema: { type: string, maxLength: 200 }
+        - in: query
+          name: status
+          description: Filter by status; absent → all statuses.
+          schema:
+            type: string
+            enum: [ACTIVE, HIDDEN]
+      responses:
+        '200':
+          description: Paginated list ordered by `createdAt DESC`.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/CategoryAdminResponse' }
+                      meta: { $ref: '#/components/schemas/PaginationMeta' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientRole' }
+
+  /admin/categories/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [admin-categories]
+      summary: Detail view
+      operationId: getAdminCategory
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/CategoryAdminResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientRole' }
+        '404': { $ref: '#/components/responses/CategoryNotFound' }
+
+    patch:
+      tags: [admin-categories]
+      summary: Partial update
+      operationId: updateAdminCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCategoryDto' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - properties:
+                      data: { $ref: '#/components/schemas/CategoryAdminResponse' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientRole' }
+        '404': { $ref: '#/components/responses/CategoryNotFound' }
+        '409':
+          description: Name or slug already exists on another row
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CategoryNameExists'
+                  - $ref: '#/components/schemas/CategorySlugExists'
+
+    delete:
+      tags: [admin-categories]
+      summary: Delete (FK-protected)
+      operationId: deleteAdminCategory
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          ok:
+                            type: boolean
+                            enum: [true]
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientRole' }
+        '404': { $ref: '#/components/responses/CategoryNotFound' }
+        '409':
+          description: Category is referenced by paths or courses
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryInUse' }
+
+components:
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [data, message]
+      properties:
+        data: {}
+        message:
+          type: string
+          example: Success
+
+    PaginationMeta:
+      type: object
+      required: [total, page, limit, totalPages]
+      properties:
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1 }
+        totalPages: { type: integer, minimum: 0 }
+
+    CategoryAdminResponse:
+      type: object
+      required: [id, name, slug, order, status, createdAt, updatedAt, pathCount, courseCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        order: { type: integer, minimum: 0 }
+        status: { type: string, enum: [ACTIVE, HIDDEN] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        pathCount: { type: integer, minimum: 0 }
+        courseCount: { type: integer, minimum: 0 }
+
+    CreateCategoryDto:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Trimmed; non-empty after trim.
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+
+    UpdateCategoryDto:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, minLength: 1, maxLength: 200, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$' }
+        order: { type: integer, minimum: 0 }
+        status: { type: string, enum: [ACTIVE, HIDDEN] }
+
+    ErrorBase:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        errorCode: { type: string }
+        errors: {}
+
+    CategoryNameExists:
+      allOf:
+        - $ref: '#/components/schemas/ErrorBase'
+        - properties:
+            statusCode: { type: integer, enum: [409] }
+            errorCode: { type: string, enum: [CATEGORY_NAME_EXISTS] }
+            message: { type: string, example: 'Category name already exists' }
+
+    CategorySlugExists:
+      allOf:
+        - $ref: '#/components/schemas/ErrorBase'
+        - properties:
+            statusCode: { type: integer, enum: [409] }
+            errorCode: { type: string, enum: [CATEGORY_SLUG_EXISTS] }
+            message: { type: string, example: 'Category slug already exists' }
+
+    CategoryInUse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorBase'
+        - properties:
+            statusCode: { type: integer, enum: [409] }
+            errorCode: { type: string, enum: [CATEGORY_IN_USE] }
+            message: { type: string, example: 'Category is in use' }
+            errors:
+              type: object
+              required: [pathCount, courseCount]
+              properties:
+                pathCount: { type: integer, minimum: 0 }
+                courseCount: { type: integer, minimum: 0 }
+
+  responses:
+    Unauthorized:
+      description: 401 — no/invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorBase'
+
+    InsufficientRole:
+      description: 403 — authenticated user lacks ADMIN role
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorBase'
+              - properties:
+                  statusCode: { type: integer, enum: [403] }
+                  errorCode: { type: string, enum: [INSUFFICIENT_ROLE] }
+
+    ValidationFailed:
+      description: 400 — DTO or query validation failed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorBase'
+              - properties:
+                  statusCode: { type: integer, enum: [400] }
+                  errorCode: { type: string, enum: [VALIDATION_FAILED] }
+                  errors:
+                    type: array
+                    items: { type: string }
+
+    CategoryNotFound:
+      description: 404 — no Category with the given UUID
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorBase'
+              - properties:
+                  statusCode: { type: integer, enum: [404] }
+                  errorCode: { type: string, enum: [CATEGORY_NOT_FOUND] }

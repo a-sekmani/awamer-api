@@ -1,6 +1,5 @@
-// TODO(KAN-?-admin-categories): When the admin Categories CRUD module is built,
-// it MUST call this.cache.del(CacheKeys.categories.all()) on every mutation
-// to invalidate the categories:all cache. Until then, manual flush is required.
+// KAN-82: CategoriesAdminService invokes this.cache.del(CacheKeys.categories.all())
+// on every successful mutation (POST/PATCH/DELETE) so this public read sees fresh data.
 
 import { Injectable } from '@nestjs/common';
 import { CategoryStatus, CourseStatus, PathStatus } from '@prisma/client';
@@ -38,8 +37,6 @@ export class CategoriesService {
       id: row.id,
       name: row.name,
       slug: row.slug,
-      description: row.description,
-      icon: row.icon,
       order: row.order,
       pathCount: row._count.paths,
       courseCount: row._count.courses,

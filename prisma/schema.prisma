@@ -340,15 +340,13 @@ model OnboardingResponse {
 // ============================================================================
 
 model Category {
-  id          String         @id @default(uuid())
-  name        String
-  slug        String         @unique
-  description String?
-  icon        String?
-  order       Int            @default(0)
-  status      CategoryStatus @default(ACTIVE)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id        String         @id @default(uuid())
+  name      String
+  slug      String         @unique
+  order     Int            @default(0)
+  status    CategoryStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   paths   Path[]
   courses Course[]
@@ -377,7 +375,7 @@ model Path {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   courses         Course[]
   pathEnrollments PathEnrollment[]
   pathProgress    PathProgress[]
@@ -409,7 +407,7 @@ model Course {
   updatedAt   DateTime     @updatedAt
 
   category       Category           @relation(fields: [categoryId], references: [id])
-  path           Path?              @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  path           Path?              @relation(fields: [pathId], references: [id], onDelete: Restrict)
   sections       Section[]
   quizzes        Quiz[]
   courseProgress CourseProgress[]
