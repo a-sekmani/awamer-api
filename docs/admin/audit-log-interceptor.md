@@ -10,18 +10,6 @@ admin **mutation** request (POST/PATCH/PUT/DELETE) and zero lines per
 read. It is the foundation's audit trail — every per-entity admin
 endpoint that uses `@AdminEndpoint()` produces this log automatically.
 
-> The class JSDoc on `AuditLogInterceptor` (lines 49–51 of
-> `audit-log.interceptor.ts`) still reads as if the interceptor is
-> registered as `APP_INTERCEPTOR` in `AdminModule`. That comment is
-> stale: the implementation was refactored to be applied per-controller
-> via `@AdminEndpoint()` after the original module-scope plan was
-> discovered to be globally-active. The real activation site is
-> `AdminEndpoint` in `src/admin/common/decorators/admin-endpoint.decorator.ts`.
-> Source-of-truth precedence: code wins, this doc tracks the code, the
-> stale JSDoc gets cleaned up in a follow-up under
-> `TODO(KAN-?-stale-audit-jsdoc)` — replace lines 49–51 with a comment
-> describing the actual activation path (`@AdminEndpoint()` composite).
-
 ---
 
 ## 1. Summary
@@ -264,7 +252,7 @@ logger emission, not replace it.
 |---|---|
 | `src/admin/interceptors/audit-log.interceptor.ts` | The interceptor implementation. |
 | `src/admin/common/decorators/admin-endpoint.decorator.ts` | Mounts the interceptor via `@UseInterceptors(AuditLogInterceptor)` inside `@AdminEndpoint()` only. |
-| `src/admin/admin.module.ts` | Provides and exports the interceptor as a regular DI provider so per-entity sub-modules importing `AdminModule` can resolve it. |
+| `src/admin/admin.module.ts` | Provides + exports the interceptor as a regular DI provider for `AdminModule`'s own controllers (e.g. `AdminHealthController`). Per-entity sub-modules registered under `AdminModule.imports` should register `AuditLogInterceptor` locally in their own `providers` as a defensive convention — keeps each sub-module self-contained and removes implicit reliance on NestJS's permissive injector resolution. `CategoriesAdminModule` (KAN-82) established this pattern. See `specs/015-categories-admin-crud/research.md` Decision 6 and [conventions.md §2.3](./conventions.md#23-module). |
 | `src/auth/strategies/jwt.strategy.ts` | Populates `req.user.userId`, `req.user.email`, `req.user.roles` upstream. |
 
 ---

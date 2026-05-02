@@ -142,7 +142,7 @@ admin-protected without checking what `AppModule` happens to register.
 | `src/admin/interceptors/audit-log.interceptor.ts` | The interceptor wrapped by `@AdminEndpoint()` only. See [audit-log-interceptor.md](./audit-log-interceptor.md). |
 | `src/common/decorators/roles.decorator.ts` | `@Roles(...)` — produces the `ROLES_KEY` metadata that `RolesGuard` reads. |
 | `src/admin/common/constants/roles.const.ts` | Re-exports `Role` from `@prisma/client` so admin code never types role strings as literals. See [conventions.md §1](./conventions.md#1-role-string-conventions). |
-| `src/admin/admin.module.ts` | Exports `RolesGuard` and `AuditLogInterceptor` so per-entity sub-modules can resolve them via DI. |
+| `src/admin/admin.module.ts` | Provides + exports `RolesGuard` and `AuditLogInterceptor` for `AdminModule`'s own controllers (e.g. `AdminHealthController`). Per-entity sub-modules registered under `AdminModule.imports` should register both providers locally as a defensive convention — keeps each sub-module self-contained and removes implicit reliance on NestJS's permissive injector resolution. `CategoriesAdminModule` (KAN-82) established this pattern. See `specs/015-categories-admin-crud/research.md` Decision 6 and [conventions.md §2.3](./conventions.md#23-module). |
 
 ---
 

@@ -169,20 +169,34 @@ See [admin-endpoint-decorator.md §3](./admin-endpoint-decorator.md).
 // src/admin/<entity>/<entity>-admin.module.ts
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { AuditLogInterceptor } from 'src/admin/interceptors/audit-log.interceptor';
 import { <Entity>AdminController } from './<entity>-admin.controller';
 import { <Entity>AdminService } from './<entity>-admin.service';
 
 @Module({
   imports: [PrismaModule],
   controllers: [<Entity>AdminController],
-  providers: [<Entity>AdminService],
+  providers: [
+    <Entity>AdminService,
+    RolesGuard,            // local registration — defensive convention.
+    AuditLogInterceptor,   // Keeps the sub-module self-contained;
+                           // see specs/015-categories-admin-crud/research.md Decision 6.
+  ],
 })
 export class <Entity>AdminModule {}
 ```
 
-Do NOT register `RolesGuard` or `AuditLogInterceptor` here. They are
-provided + exported by `AdminModule`; the composite decorator
-resolves them via DI.
+Register `RolesGuard` and `AuditLogInterceptor` locally in the
+sub-module's `providers` array as a defensive convention. This keeps
+sub-modules self-contained and removes implicit reliance on NestJS's
+permissive injector resolution — which currently does find these
+classes through their framework-global dependencies (`Reflector`,
+`Logger`), but should not be relied upon as a contract.
+`CategoriesAdminModule` (shipped in KAN-82) established this pattern.
+Both providers are stateless, so per-module instances cost nothing
+functionally. See `specs/015-categories-admin-crud/research.md`
+Decision 6 for the diagnostic history.
 
 ### 2.4 Wire into `AdminModule.imports`
 
@@ -204,10 +218,25 @@ import { <Entity>AdminModule } from './<entity>/<entity>-admin.module';   // ←
 export class AdminModule {}
 ```
 
+**Note on DI propagation.** Adding `<Entity>AdminModule` to
+`AdminModule.imports` is the right wiring direction — the sub-module is
+a child of `AdminModule`, which gives the route the correct admin scope
+and makes the choke point visible to reviewers. The `providers` /
+`exports` of `RolesGuard` and `AuditLogInterceptor` on `AdminModule`
+above only serve `AdminModule`'s own controllers (e.g.
+`AdminHealthController`). For the sub-module itself, follow
+[§2.3](#23-module) and register both providers locally as a defensive
+convention — the sub-module stays self-contained rather than implicitly
+relying on NestJS's permissive injector resolution. See
+`specs/015-categories-admin-crud/research.md` Decision 6.
+
 **Forbidden:** importing `<Entity>AdminModule` into `AppModule.imports`
-instead. The composite decorator resolves `RolesGuard` and
-`AuditLogInterceptor` from `AdminModule`'s exports; sub-modules MUST be
-children of `AdminModule` so DI sees them.
+instead. Sub-modules MUST be children of `AdminModule` for the
+`/admin/<entities>` route prefix to be unambiguously admin-scoped and so
+that `AdminModule` is the single discoverable choke point listing every
+admin sub-module in the codebase. (The local-providers pattern from
+[§2.3](#23-module) is what makes the sub-module's own DI scope
+self-contained either way.)
 
 ### 2.5 Service
 

@@ -43,22 +43,26 @@ interface AdminRequest {
 }
 
 /**
- * AuditLogInterceptor — emits a structured audit entry for every mutation
- * (POST/PATCH/PUT/DELETE) on a route mounted under `AdminModule`.
+ * AuditLogInterceptor — emits one structured audit entry per admin mutation
+ * (POST/PATCH/PUT/DELETE); reads (GET/HEAD/OPTIONS) skip emission via the
+ * method gate. Reads the matched route pattern from `req.route.path`, so
+ * raw IDs/UUIDs never leak into the `route` field. `Logger.log` is wrapped
+ * in try/catch (a failing transport never breaks the request) and errors
+ * are re-thrown for the global `HttpExceptionFilter`.
  *
- * Registered as `APP_INTERCEPTOR` provider INSIDE `AdminModule`, NOT globally,
- * so it only fires inside admin scope. Sub-modules imported via
- * `AdminModule.imports` inherit this automatically.
+ * Activation is per-controller via the `@AdminEndpoint()` composite
+ * (`src/admin/common/decorators/admin-endpoint.decorator.ts`); never
+ * registered as `APP_INTERCEPTOR`. `@AdminEndpointNoAudit()` deliberately
+ * omits it. `AdminModule` provides + exports this class for its own
+ * controllers; per-entity sub-modules under `AdminModule.imports` should
+ * register it locally as a defensive convention so each sub-module is
+ * self-contained and does not implicitly rely on NestJS's permissive
+ * injector resolution. `CategoriesAdminModule` (KAN-82) established this
+ * pattern; see `specs/015-categories-admin-crud/research.md` Decision 6.
  *
- * - Reads the matched route pattern from `req.route.path` (e.g. `/admin/users/:id`).
- *   Raw IDs/UUIDs in the URL never leak into the `route` field.
- * - Reads `req.user` populated by the global `JwtAuthGuard`.
- * - Skips emission for GET/HEAD/OPTIONS and when `req.route` is undefined.
- * - Wraps `Logger.log` in try/catch so a failing logger never fails the request.
- * - Re-throws original errors so the global `HttpExceptionFilter` formats them normally.
- *
- * See `specs/014-admin-foundation/contracts/audit-log.contract.md` for the
- * complete contract.
+ * Logger context: `'AdminAudit'`. The Nest application logger is the only
+ * sink — DB persistence is explicitly out of scope. Full contract in
+ * `specs/014-admin-foundation/contracts/audit-log.contract.md`.
  */
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
