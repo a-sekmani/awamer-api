@@ -110,9 +110,13 @@ const mockMailService = {
 
 const mockJwtService = {
   sign: jest.fn().mockReturnValue('mock_token'),
-  verify: jest
-    .fn()
-    .mockReturnValue({ sub: 'user-uuid', email: 'test@example.com', emailVerified: false, onboardingCompleted: false, roles: ['LEARNER'] }),
+  verify: jest.fn().mockReturnValue({
+    sub: 'user-uuid',
+    email: 'test@example.com',
+    emailVerified: false,
+    onboardingCompleted: false,
+    roles: ['LEARNER'],
+  }),
 };
 
 const mockGeoipService = {
@@ -184,7 +188,10 @@ describe('AuthService', () => {
         fail('Expected ConflictException');
       } catch (error) {
         expect(error).toBeInstanceOf(ConflictException);
-        const response = (error as ConflictException).getResponse() as Record<string, unknown>;
+        const response = (error as ConflictException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.EMAIL_ALREADY_EXISTS);
       }
     });
@@ -294,10 +301,7 @@ describe('AuthService', () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
       mockGeoipService.getCountryFromIp.mockReturnValue('AE');
 
-      await service.register(
-        { ...registerDto, country: 'EG' },
-        '185.0.0.3',
-      );
+      await service.register({ ...registerDto, country: 'EG' }, '185.0.0.3');
 
       expect(mockTx.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -337,7 +341,9 @@ describe('AuthService', () => {
         fail('Expected UnauthorizedException');
       } catch (error) {
         expect(error).toBeInstanceOf(UnauthorizedException);
-        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        const response = (
+          error as UnauthorizedException
+        ).getResponse() as Record<string, unknown>;
         expect(response.errorCode).toBe(ErrorCode.INVALID_CREDENTIALS);
       }
     });
@@ -350,7 +356,9 @@ describe('AuthService', () => {
         fail('Expected UnauthorizedException');
       } catch (error) {
         expect(error).toBeInstanceOf(UnauthorizedException);
-        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        const response = (
+          error as UnauthorizedException
+        ).getResponse() as Record<string, unknown>;
         expect(response.errorCode).toBe(ErrorCode.INVALID_CREDENTIALS);
       }
     });
@@ -552,7 +560,9 @@ describe('AuthService', () => {
         fail('Expected UnauthorizedException');
       } catch (error) {
         expect(error).toBeInstanceOf(UnauthorizedException);
-        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        const response = (
+          error as UnauthorizedException
+        ).getResponse() as Record<string, unknown>;
         expect(response.errorCode).toBe(ErrorCode.INVALID_SESSION);
       }
     });
@@ -567,7 +577,9 @@ describe('AuthService', () => {
         fail('Expected UnauthorizedException');
       } catch (error) {
         expect(error).toBeInstanceOf(UnauthorizedException);
-        const response = (error as UnauthorizedException).getResponse() as Record<string, unknown>;
+        const response = (
+          error as UnauthorizedException
+        ).getResponse() as Record<string, unknown>;
         expect(response.errorCode).toBe(ErrorCode.INVALID_SESSION);
       }
     });
@@ -702,9 +714,7 @@ describe('AuthService', () => {
 
       await service.forgotPassword({ email: 'test@example.com' }, testIp);
 
-      expect(
-        mockPrismaService.rateLimitedRequest.create,
-      ).toHaveBeenCalledWith({
+      expect(mockPrismaService.rateLimitedRequest.create).toHaveBeenCalledWith({
         data: {
           email: 'test@example.com',
           ip: testIp,
@@ -859,7 +869,10 @@ describe('AuthService', () => {
         fail('Expected BadRequestException');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        const response = (error as BadRequestException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
       }
     });
@@ -903,8 +916,8 @@ describe('AuthService', () => {
       });
 
       // $transaction should be called with an array
-      const txCall = mockPrismaService.$transaction.mock.calls.find(
-        (call) => Array.isArray(call[0]),
+      const txCall = mockPrismaService.$transaction.mock.calls.find((call) =>
+        Array.isArray(call[0]),
       );
       expect(txCall).toBeDefined();
     });
@@ -930,7 +943,10 @@ describe('AuthService', () => {
         fail('Expected BadRequestException');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        const response = (error as BadRequestException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
       }
     });
@@ -944,7 +960,10 @@ describe('AuthService', () => {
         fail('Expected BadRequestException');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        const response = (error as BadRequestException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
       }
     });
@@ -955,7 +974,10 @@ describe('AuthService', () => {
         fail('Expected BadRequestException');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        const response = (error as BadRequestException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
       }
     });
@@ -963,7 +985,10 @@ describe('AuthService', () => {
     it('should return 400 after token has been used by resetPassword (single-use)', async () => {
       // First: resetPassword succeeds and clears the token
       mockPrismaService.user.findFirst.mockResolvedValueOnce(mockUser);
-      await service.resetPassword({ token: 'one_time_token', password: 'NewPass123' });
+      await service.resetPassword({
+        token: 'one_time_token',
+        password: 'NewPass123',
+      });
 
       // Second: verifyResetToken fails because token was cleared
       mockPrismaService.user.findFirst.mockResolvedValueOnce(null);
@@ -973,7 +998,10 @@ describe('AuthService', () => {
         fail('Expected BadRequestException');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        const response = (error as BadRequestException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.INVALID_RESET_TOKEN);
       }
     });
@@ -1043,16 +1071,16 @@ describe('AuthService', () => {
         emailVerified: true,
       });
 
-      await expect(
-        service.sendVerificationCode('user-uuid'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.sendVerificationCode('user-uuid')).rejects.toThrow(
+        BadRequestException,
+      );
       mockPrismaService.user.findUnique.mockResolvedValue({
         ...mockUser,
         emailVerified: true,
       });
-      await expect(
-        service.sendVerificationCode('user-uuid'),
-      ).rejects.toThrow('Email already verified');
+      await expect(service.sendVerificationCode('user-uuid')).rejects.toThrow(
+        'Email already verified',
+      );
     });
 
     it('should throw 429 with RATE_LIMIT_EXCEEDED if per-email cooldown hit', async () => {
@@ -1070,7 +1098,10 @@ describe('AuthService', () => {
         fail('Expected HttpException');
       } catch (e) {
         expect((e as HttpException).getStatus()).toBe(429);
-        const response = (e as HttpException).getResponse() as Record<string, unknown>;
+        const response = (e as HttpException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.RATE_LIMIT_EXCEEDED);
         expect(response.retryAfter).toBeGreaterThan(0);
       }
@@ -1095,8 +1126,7 @@ describe('AuthService', () => {
 
       await service.sendVerificationCode('user-uuid');
 
-      const sentCode =
-        mockMailService.sendVerificationEmail.mock.calls[0][1];
+      const sentCode = mockMailService.sendVerificationEmail.mock.calls[0][1];
       expect(sentCode).toMatch(/^\d{6}$/);
       expect(parseInt(sentCode, 10)).toBeGreaterThanOrEqual(100000);
       expect(parseInt(sentCode, 10)).toBeLessThanOrEqual(999999);
@@ -1116,8 +1146,7 @@ describe('AuthService', () => {
       expect(storedCode).toMatch(/^[a-f0-9]{64}$/);
 
       // It should NOT be the plaintext 6-digit code
-      const sentCode =
-        mockMailService.sendVerificationEmail.mock.calls[0][1];
+      const sentCode = mockMailService.sendVerificationEmail.mock.calls[0][1];
       expect(storedCode).not.toBe(sentCode);
     });
 
@@ -1164,9 +1193,9 @@ describe('AuthService', () => {
         new Error('SES connection failed'),
       );
 
-      await expect(
-        service.sendVerificationCode('user-uuid'),
-      ).rejects.toThrow('SES connection failed');
+      await expect(service.sendVerificationCode('user-uuid')).rejects.toThrow(
+        'SES connection failed',
+      );
 
       // Transaction should still have been called (codes were created before mail)
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
@@ -1290,9 +1319,7 @@ describe('AuthService', () => {
     it('should log the request in rateLimitedRequest table', async () => {
       await service.sendVerificationCode('user-uuid', testIp);
 
-      expect(
-        mockPrismaService.rateLimitedRequest.create,
-      ).toHaveBeenCalledWith({
+      expect(mockPrismaService.rateLimitedRequest.create).toHaveBeenCalledWith({
         data: {
           email: mockUser.email,
           ip: testIp,
@@ -1339,25 +1366,25 @@ describe('AuthService', () => {
         emailVerified: true,
       });
 
-      await expect(
-        service.verifyEmail('user-uuid', '123456'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.verifyEmail('user-uuid', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
       mockPrismaService.user.findUnique.mockResolvedValue({
         ...mockUser,
         emailVerified: true,
       });
-      await expect(
-        service.verifyEmail('user-uuid', '123456'),
-      ).rejects.toThrow('Email already verified');
+      await expect(service.verifyEmail('user-uuid', '123456')).rejects.toThrow(
+        'Email already verified',
+      );
     });
 
     it('should throw 400 if no valid code found (all expired or used)', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.emailVerification.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.verifyEmail('user-uuid', '123456'),
-      ).rejects.toThrow('No valid verification code found');
+      await expect(service.verifyEmail('user-uuid', '123456')).rejects.toThrow(
+        'No valid verification code found',
+      );
     });
 
     it('should throw 400 and increment attempts on incorrect code', async () => {
@@ -1366,9 +1393,9 @@ describe('AuthService', () => {
         validVerification,
       );
 
-      await expect(
-        service.verifyEmail('user-uuid', '999999'),
-      ).rejects.toThrow('Invalid verification code');
+      await expect(service.verifyEmail('user-uuid', '999999')).rejects.toThrow(
+        'Invalid verification code',
+      );
 
       expect(mockPrismaService.emailVerification.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1385,9 +1412,9 @@ describe('AuthService', () => {
         attempts: 5,
       });
 
-      await expect(
-        service.verifyEmail('user-uuid', '123456'),
-      ).rejects.toThrow('too many attempts');
+      await expect(service.verifyEmail('user-uuid', '123456')).rejects.toThrow(
+        'too many attempts',
+      );
 
       expect(mockPrismaService.emailVerification.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1405,8 +1432,8 @@ describe('AuthService', () => {
       await service.verifyEmail('user-uuid', '123456');
 
       // $transaction should be called with an array
-      const txCall = mockPrismaService.$transaction.mock.calls.find(
-        (call) => Array.isArray(call[0]),
+      const txCall = mockPrismaService.$transaction.mock.calls.find((call) =>
+        Array.isArray(call[0]),
       );
       expect(txCall).toBeDefined();
 
@@ -1440,8 +1467,8 @@ describe('AuthService', () => {
       await service.verifyEmail('user-uuid', '123456');
 
       // Verify transaction was called with an array of exactly 2 operations
-      const txCall = mockPrismaService.$transaction.mock.calls.find(
-        (call) => Array.isArray(call[0]),
+      const txCall = mockPrismaService.$transaction.mock.calls.find((call) =>
+        Array.isArray(call[0]),
       );
       expect(txCall).toBeDefined();
       expect(txCall![0]).toHaveLength(2);
@@ -1452,14 +1479,12 @@ describe('AuthService', () => {
       // Prisma's findFirst with { expiresAt: { gt: new Date() } } returns null for expired codes
       mockPrismaService.emailVerification.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.verifyEmail('user-uuid', '123456'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.verifyEmail('user-uuid', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       mockPrismaService.emailVerification.findFirst.mockResolvedValue(null);
-      await expect(
-        service.verifyEmail('user-uuid', '123456'),
-      ).rejects.toThrow(
+      await expect(service.verifyEmail('user-uuid', '123456')).rejects.toThrow(
         'No valid verification code found. Please request a new one',
       );
     });
@@ -1472,9 +1497,9 @@ describe('AuthService', () => {
         attempts: 2,
       });
 
-      await expect(
-        service.verifyEmail('user-uuid', '999999'),
-      ).rejects.toThrow('Invalid verification code');
+      await expect(service.verifyEmail('user-uuid', '999999')).rejects.toThrow(
+        'Invalid verification code',
+      );
 
       expect(mockPrismaService.emailVerification.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1641,7 +1666,11 @@ describe('AuthService', () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(true);
 
-      await service.login({ email: 'test@example.com', password: 'Test1234', rememberMe: true });
+      await service.login({
+        email: 'test@example.com',
+        password: 'Test1234',
+        rememberMe: true,
+      });
 
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         expect.any(Object),
@@ -1653,7 +1682,11 @@ describe('AuthService', () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(true);
 
-      await service.login({ email: 'test@example.com', password: 'Test1234', rememberMe: false });
+      await service.login({
+        email: 'test@example.com',
+        password: 'Test1234',
+        rememberMe: false,
+      });
 
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         expect.any(Object),

@@ -169,7 +169,9 @@ describe('Admin Foundation (e2e)', () => {
       expect(res.body.cause).toBeUndefined();
       expect(res.body.name).toBeUndefined();
       // Human-readable message must not contain internal class identifiers
-      expect(res.body.message).not.toMatch(/Exception|ForbiddenException|RolesGuard/);
+      expect(res.body.message).not.toMatch(
+        /Exception|ForbiddenException|RolesGuard/,
+      );
     });
   });
 
@@ -244,7 +246,9 @@ describe('Admin Foundation (e2e)', () => {
     }
 
     beforeEach(() => {
-      logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+      logSpy = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
     });
 
     afterEach(() => {

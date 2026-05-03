@@ -94,10 +94,7 @@ describe('PublicMarketingQueries (e2e)', () => {
         },
       ],
     });
-    const faqs = await queries.getFaqsByOwner(
-      MarketingOwnerType.PATH,
-      path.id,
-    );
+    const faqs = await queries.getFaqsByOwner(MarketingOwnerType.PATH, path.id);
     expect(faqs.map((f) => f.order)).toEqual([0, 1]);
   });
 
@@ -149,9 +146,9 @@ describe('PublicMarketingQueries (e2e)', () => {
       'Approved 1',
       'Approved 2',
     ]);
-    expect(
-      approved.every((t) => t.status === TestimonialStatus.APPROVED),
-    ).toBe(true);
+    expect(approved.every((t) => t.status === TestimonialStatus.APPROVED)).toBe(
+      true,
+    );
   });
 
   it('returns [] when owner has no marketing content', async () => {

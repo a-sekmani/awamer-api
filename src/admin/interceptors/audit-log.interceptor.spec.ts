@@ -1,4 +1,9 @@
-import { CallHandler, ExecutionContext, HttpException, Logger } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { lastValueFrom, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -22,8 +27,7 @@ function makeContext(req: MockReqShape): ExecutionContext {
 
 function makeNext(value: unknown, throwError$?: unknown): CallHandler {
   return {
-    handle: () =>
-      throwError$ ? throwError(() => throwError$) : of(value),
+    handle: () => (throwError$ ? throwError(() => throwError$) : of(value)),
   };
 }
 
@@ -39,7 +43,9 @@ describe('AuditLogInterceptor', () => {
 
   beforeEach(() => {
     interceptor = new AuditLogInterceptor();
-    logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    logSpy = jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -55,7 +61,9 @@ describe('AuditLogInterceptor', () => {
       headers: { 'user-agent': 'Mozilla/5.0' },
     });
 
-    const result = await lastValueFrom(interceptor.intercept(ctx, makeNext({ ok: true })));
+    const result = await lastValueFrom(
+      interceptor.intercept(ctx, makeNext({ ok: true })),
+    );
 
     expect(result).toEqual({ ok: true });
     expect(logSpy).toHaveBeenCalledTimes(1);
@@ -131,7 +139,9 @@ describe('AuditLogInterceptor', () => {
       headers: { 'user-agent': 'Mozilla/5.0' },
     });
 
-    const result = await lastValueFrom(interceptor.intercept(ctx, makeNext({ ok: true })));
+    const result = await lastValueFrom(
+      interceptor.intercept(ctx, makeNext({ ok: true })),
+    );
     expect(result).toEqual({ ok: true });
   });
 

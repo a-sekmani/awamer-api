@@ -108,10 +108,7 @@ describe('toPathSummaryDto', () => {
   });
 
   it('returns level=null when stored value is non-canonical', () => {
-    const dto = toPathSummaryDto(
-      basePath({ level: 'expert' }) as never,
-      stats,
-    );
+    const dto = toPathSummaryDto(basePath({ level: 'expert' }) as never, stats);
     expect(dto.level).toBeNull();
   });
 });

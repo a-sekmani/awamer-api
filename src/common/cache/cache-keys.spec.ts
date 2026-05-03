@@ -13,12 +13,18 @@ describe('CacheKeys', () => {
   });
 
   it('produces paths keys with slug or query hash', () => {
-    expect(CacheKeys.paths.list('abc1234567890def')).toBe('paths:list:abc1234567890def');
-    expect(CacheKeys.paths.detail('my-path-slug')).toBe('paths:detail:my-path-slug');
+    expect(CacheKeys.paths.list('abc1234567890def')).toBe(
+      'paths:list:abc1234567890def',
+    );
+    expect(CacheKeys.paths.detail('my-path-slug')).toBe(
+      'paths:detail:my-path-slug',
+    );
   });
 
   it('produces courses keys with slug or query hash', () => {
-    expect(CacheKeys.courses.list('hash1234567890ab')).toBe('courses:list:hash1234567890ab');
+    expect(CacheKeys.courses.list('hash1234567890ab')).toBe(
+      'courses:list:hash1234567890ab',
+    );
     expect(CacheKeys.courses.detail('my-course-slug')).toBe(
       'courses:detail:my-course-slug',
     );
@@ -46,7 +52,10 @@ describe('CacheKeys', () => {
       CacheKeys.paths.detail('slug-with-dashes'),
       CacheKeys.courses.list('abc1234567890def'),
       CacheKeys.courses.detail('slug-with-dashes'),
-      CacheKeys.marketing.features('path', 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'),
+      CacheKeys.marketing.features(
+        'path',
+        'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      ),
     ];
     for (const key of samples) {
       expect(key).toMatch(KEY_GRAMMAR);

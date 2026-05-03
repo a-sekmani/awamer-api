@@ -43,11 +43,13 @@ describe('Auth (e2e)', () => {
   }
 
   /** Create a user directly in the DB and return id + signed JWT */
-  async function createTestUser(opts: {
-    emailVerified?: boolean;
-    password?: string;
-    status?: string;
-  } = {}) {
+  async function createTestUser(
+    opts: {
+      emailVerified?: boolean;
+      password?: string;
+      status?: string;
+    } = {},
+  ) {
     const email = uniqueEmail();
     const {
       emailVerified = false,
@@ -136,9 +138,7 @@ describe('Auth (e2e)', () => {
     await app.init();
 
     // Disable throttling for E2E tests
-    jest
-      .spyOn(ThrottlerGuard.prototype, 'canActivate')
-      .mockResolvedValue(true);
+    jest.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
 
     prisma = app.get(PrismaService);
     jwtService = app.get(JwtService);
@@ -333,7 +333,11 @@ describe('Auth (e2e)', () => {
     it('should return 400 for invalid email format', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/register')
-        .send({ name: 'Test', email: 'not-an-email', password: STRONG_PASSWORD })
+        .send({
+          name: 'Test',
+          email: 'not-an-email',
+          password: STRONG_PASSWORD,
+        })
         .expect(400);
     });
 
@@ -762,7 +766,11 @@ describe('Auth (e2e)', () => {
       const controllerOutput = res.body.data?.data ?? res.body.data;
       // controllerOutput is { data: null, message: 'Logout successful' } or null
       // Check that the innermost data is null
-      if (controllerOutput && typeof controllerOutput === 'object' && 'data' in controllerOutput) {
+      if (
+        controllerOutput &&
+        typeof controllerOutput === 'object' &&
+        'data' in controllerOutput
+      ) {
         expect(controllerOutput.data).toBeNull();
       } else {
         expect(controllerOutput).toBeNull();
@@ -851,7 +859,13 @@ describe('Auth (e2e)', () => {
       // Generate a valid JWT for the refresh secret
       const refreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
       const refreshToken = jwtService.sign(
-        { sub: userId, email: 'test@test.com', emailVerified: false, onboardingCompleted: false, roles: ['LEARNER'] },
+        {
+          sub: userId,
+          email: 'test@test.com',
+          emailVerified: false,
+          onboardingCompleted: false,
+          roles: ['LEARNER'],
+        },
         { secret: refreshSecret, expiresIn: '7d' },
       );
 
@@ -1265,10 +1279,7 @@ describe('Auth (e2e)', () => {
       });
 
       const code = '123456';
-      const hashedCode = crypto
-        .createHash('sha256')
-        .update(code)
-        .digest('hex');
+      const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
 
       await prisma.emailVerification.create({
         data: {
@@ -1302,8 +1313,7 @@ describe('Auth (e2e)', () => {
     });
 
     it('should update user.emailVerified in database', async () => {
-      const { token, code, userId } =
-        await createUserWithVerificationCode();
+      const { token, code, userId } = await createUserWithVerificationCode();
 
       await request(app.getHttpServer())
         .post('/api/v1/auth/verify-email')
@@ -1357,8 +1367,7 @@ describe('Auth (e2e)', () => {
     });
 
     it('should invalidate code after 5 failed attempts', async () => {
-      const { token, userId, code } =
-        await createUserWithVerificationCode();
+      const { token, userId, code } = await createUserWithVerificationCode();
 
       // Simulate 5 previous failed attempts (reaching the max)
       await prisma.emailVerification.updateMany({
@@ -1389,10 +1398,7 @@ describe('Auth (e2e)', () => {
       });
 
       const code = '654321';
-      const hashedCode = crypto
-        .createHash('sha256')
-        .update(code)
-        .digest('hex');
+      const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
 
       await prisma.emailVerification.create({
         data: {
@@ -1597,10 +1603,7 @@ describe('Auth (e2e)', () => {
       const accessToken = extractCookieValue(
         findCookie(cookies, 'access_token')!,
       );
-      const decoded = jwtService.decode(accessToken) as Record<
-        string,
-        unknown
-      >;
+      const decoded = jwtService.decode(accessToken) as Record<string, unknown>;
       const userId = decoded.sub as string;
 
       // Send verification code
@@ -1776,9 +1779,9 @@ describe('Auth (e2e)', () => {
       ];
 
       for (const ep of publicEndpoints) {
-        const res = await (request(app.getHttpServer()) as any)[ep.method](
-          ep.path,
-        ).send({});
+        const res = await (request(app.getHttpServer()) as any)
+          [ep.method](ep.path)
+          .send({});
         // Should NOT be 401 (may be 400 for validation, but not unauthorized)
         expect(res.status).not.toBe(401);
       }
@@ -1793,10 +1796,7 @@ describe('Auth (e2e)', () => {
       ];
 
       for (const path of protectedEndpoints) {
-        await request(app.getHttpServer())
-          .post(path)
-          .send({})
-          .expect(401);
+        await request(app.getHttpServer()).post(path).send({}).expect(401);
       }
     });
 

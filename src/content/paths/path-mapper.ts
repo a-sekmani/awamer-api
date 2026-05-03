@@ -2,14 +2,15 @@
 // certificateEnabled/certificateRequiresAwamerPlus columns on Path, replace
 // this constant with a per-row read. For MVP, all paths grant a certificate
 // and the text is uniform.
-const PATH_CERTIFICATE_TEXT =
-  'أكمل جميع دورات المسار للحصول على شهادة معتمدة';
+const PATH_CERTIFICATE_TEXT = 'أكمل جميع دورات المسار للحصول على شهادة معتمدة';
 
 import { CertificateDto, PathDetailDto } from './dto/path-detail.dto';
 import { PathSummaryDto, PaginatedResponse } from './dto/path-summary.dto';
 import { PathStats, normalizeLevel } from './path-stats.helper';
 
-export function buildPathCertificate(path: { isFree: boolean }): CertificateDto {
+export function buildPathCertificate(path: {
+  isFree: boolean;
+}): CertificateDto {
   return {
     enabled: true,
     requiresAwamerPlus: !path.isFree,
@@ -60,7 +61,11 @@ type PathRow = {
 };
 
 function mapTags(tags: TagJoinRow[]) {
-  return tags.map((t) => ({ id: t.tag.id, name: t.tag.name, slug: t.tag.slug }));
+  return tags.map((t) => ({
+    id: t.tag.id,
+    name: t.tag.name,
+    slug: t.tag.slug,
+  }));
 }
 
 function mapCategory(c: CategoryRow) {

@@ -1,7 +1,9 @@
 import { prisma, truncateAll } from './setup';
 
 async function seedCtx() {
-  const cat = await prisma.category.create({ data: { name: 'C', slug: 'tg-cat' } });
+  const cat = await prisma.category.create({
+    data: { name: 'C', slug: 'tg-cat' },
+  });
   const p1 = await prisma.path.create({
     data: { categoryId: cat.id, title: 'P1', slug: 'tg-p1' },
   });

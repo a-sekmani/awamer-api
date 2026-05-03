@@ -350,7 +350,9 @@ describe('EnrollmentService', () => {
       prisma.course.findUnique.mockResolvedValue({ id: 'c1', pathId: 'p1' });
       // Reusing pathEnrollment.findMany slot won't work — the guard uses findFirst.
       // We need a `findFirst` on pathEnrollment for this code path:
-      (prisma as unknown as { pathEnrollment: { findFirst: jest.Mock } }).pathEnrollment = {
+      (
+        prisma as unknown as { pathEnrollment: { findFirst: jest.Mock } }
+      ).pathEnrollment = {
         findFirst: jest.fn().mockResolvedValue({ id: 'pe1' }),
       };
       const result = await service.hasAccessToCourse('u1', 'c1');

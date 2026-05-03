@@ -8,7 +8,10 @@ import { REDIS_CLIENT } from './redis.provider';
 describe('CacheService', () => {
   let service: CacheService;
   let redis: InstanceType<typeof RedisMock>;
-  let prisma: { path: { findUnique: jest.Mock }; course: { findUnique: jest.Mock } };
+  let prisma: {
+    path: { findUnique: jest.Mock };
+    course: { findUnique: jest.Mock };
+  };
 
   beforeEach(async () => {
     redis = new RedisMock();
@@ -130,9 +133,13 @@ describe('CacheService', () => {
 
       await service.invalidateOwner('path', id);
 
-      expect(await redis.get(CacheKeys.marketing.features('path', id))).toBeNull();
+      expect(
+        await redis.get(CacheKeys.marketing.features('path', id)),
+      ).toBeNull();
       expect(await redis.get(CacheKeys.marketing.faqs('path', id))).toBeNull();
-      expect(await redis.get(CacheKeys.marketing.testimonials('path', id))).toBeNull();
+      expect(
+        await redis.get(CacheKeys.marketing.testimonials('path', id)),
+      ).toBeNull();
       expect(await redis.get('paths:detail:some-slug')).toBeNull();
       expect(await redis.get('paths:list:abc123')).toBeNull();
       // courses:* must remain untouched when invalidating a path
@@ -147,7 +154,9 @@ describe('CacheService', () => {
 
       await service.invalidateOwner('course', 'c-1');
 
-      expect(await redis.get(CacheKeys.marketing.features('course', 'c-1'))).toBeNull();
+      expect(
+        await redis.get(CacheKeys.marketing.features('course', 'c-1')),
+      ).toBeNull();
       expect(await redis.get('courses:detail:slug')).toBeNull();
       expect(await redis.get('courses:list:abc')).toBeNull();
       expect(await redis.get('paths:list:preserved')).toBe('1');

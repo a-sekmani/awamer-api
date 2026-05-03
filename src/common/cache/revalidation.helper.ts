@@ -27,9 +27,7 @@ export class RevalidationHelper {
       return;
     }
     if (!frontendUrl) {
-      this.logger.debug(
-        `revalidatePath skipped (FRONTEND_URL unset): ${path}`,
-      );
+      this.logger.debug(`revalidatePath skipped (FRONTEND_URL unset): ${path}`);
       return;
     }
 

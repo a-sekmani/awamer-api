@@ -5,7 +5,9 @@ async function ctx() {
   const user = await prisma.user.create({
     data: { name: 'U', email: 'c@test.local', passwordHash: 'x' },
   });
-  const cat = await prisma.category.create({ data: { name: 'C', slug: 'cert-cat' } });
+  const cat = await prisma.category.create({
+    data: { name: 'C', slug: 'cert-cat' },
+  });
   const path = await prisma.path.create({
     data: { categoryId: cat.id, title: 'P', slug: 'cert-p' },
   });
@@ -75,7 +77,9 @@ describe('Certificate schema', () => {
         certificateCode: code(),
       },
     });
-    expect(await prisma.certificate.count({ where: { userId: user.id } })).toBe(2);
+    expect(await prisma.certificate.count({ where: { userId: user.id } })).toBe(
+      2,
+    );
   });
 
   it('CHECK rejects both pathId and courseId set', async () => {

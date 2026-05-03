@@ -4,12 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  CourseStatus,
-  PathStatus,
-  Prisma,
-  TagStatus,
-} from '@prisma/client';
+import { CourseStatus, PathStatus, Prisma, TagStatus } from '@prisma/client';
 import { CacheKeys, CacheTTL } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -121,7 +116,9 @@ describe('TagsService', () => {
 
   describe('cache invalidation', () => {
     it('listPublic reads from cache first and returns cached value on hit', async () => {
-      cache.get.mockResolvedValueOnce([{ id: 'x', name: 'y', slug: 'z', pathCount: 0, courseCount: 0 }]);
+      cache.get.mockResolvedValueOnce([
+        { id: 'x', name: 'y', slug: 'z', pathCount: 0, courseCount: 0 },
+      ]);
       const result = await service.listPublic();
       expect(cache.get).toHaveBeenCalledWith(CacheKeys.tags.all());
       expect(result).toHaveLength(1);
@@ -153,8 +150,12 @@ describe('TagsService', () => {
       await service.create({ name: 'n', slug: 'n' });
       expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.all());
       expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.adminAll());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.paths.listPattern(),
+      );
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.courses.listPattern(),
+      );
     });
 
     it('update invalidates tags + paths:list + courses:list', async () => {
@@ -170,8 +171,12 @@ describe('TagsService', () => {
       await service.update('t', { name: 'n' });
       expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.all());
       expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.adminAll());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.paths.listPattern(),
+      );
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.courses.listPattern(),
+      );
     });
 
     it('remove invalidates tags + paths:list + courses:list', async () => {
@@ -179,8 +184,12 @@ describe('TagsService', () => {
       await service.remove('t');
       expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.all());
       expect(cache.del).toHaveBeenCalledWith(CacheKeys.tags.adminAll());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.paths.listPattern(),
+      );
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.courses.listPattern(),
+      );
     });
   });
 
@@ -213,9 +222,21 @@ describe('TagsService', () => {
         _count: { _all: true },
       });
       expect(result).toEqual([
-        { id: 'tag1', name: 'ألف', slug: 'alpha', pathCount: 2, courseCount: 1 },
+        {
+          id: 'tag1',
+          name: 'ألف',
+          slug: 'alpha',
+          pathCount: 2,
+          courseCount: 1,
+        },
         { id: 'tag2', name: 'باء', slug: 'beta', pathCount: 1, courseCount: 1 },
-        { id: 'tag3', name: 'جيم', slug: 'gamma', pathCount: 0, courseCount: 0 },
+        {
+          id: 'tag3',
+          name: 'جيم',
+          slug: 'gamma',
+          pathCount: 0,
+          courseCount: 0,
+        },
       ]);
     });
 

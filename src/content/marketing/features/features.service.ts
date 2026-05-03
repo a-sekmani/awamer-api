@@ -59,18 +59,14 @@ export class FeaturesService {
         order,
       },
     });
-    const scope: 'path' | 'course' =
-      ownerType === 'PATH' ? 'path' : 'course';
+    const scope: 'path' | 'course' = ownerType === 'PATH' ? 'path' : 'course';
     await this.cache.invalidateOwner(scope, ownerId);
     const slug = await this.cache.slugFor(scope, ownerId);
     if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
     return FeatureResponseDto.fromEntity(created);
   }
 
-  async update(
-    id: string,
-    dto: UpdateFeatureDto,
-  ): Promise<FeatureResponseDto> {
+  async update(id: string, dto: UpdateFeatureDto): Promise<FeatureResponseDto> {
     if (Object.keys(dto).length === 0) {
       throw new BadRequestException('At least one field must be provided');
     }
@@ -129,8 +125,7 @@ export class FeaturesService {
   ): Promise<FeatureResponseDto[]> {
     await this.ownerValidator.ensureOwnerExists(ownerType, ownerId);
     await this.reorderHelper.reorder('feature', ownerType, ownerId, itemIds);
-    const scope: 'path' | 'course' =
-      ownerType === 'PATH' ? 'path' : 'course';
+    const scope: 'path' | 'course' = ownerType === 'PATH' ? 'path' : 'course';
     await this.cache.invalidateOwner(scope, ownerId);
     const slug = await this.cache.slugFor(scope, ownerId);
     if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);

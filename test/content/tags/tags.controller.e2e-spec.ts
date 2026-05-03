@@ -46,7 +46,12 @@ describe('GET /api/v1/tags (public)', () => {
       data: [
         { id: 'ta', name: 'Beta', slug: 'beta', status: TagStatus.ACTIVE },
         { id: 'tb', name: 'Alpha', slug: 'alpha', status: TagStatus.ACTIVE },
-        { id: 'tc', name: 'Charlie', slug: 'charlie', status: TagStatus.ACTIVE },
+        {
+          id: 'tc',
+          name: 'Charlie',
+          slug: 'charlie',
+          status: TagStatus.ACTIVE,
+        },
         { id: 'th', name: 'Hidden', slug: 'hidden', status: TagStatus.HIDDEN },
       ],
     });
@@ -121,8 +126,13 @@ describe('GET /api/v1/tags (public)', () => {
 
     const res = await request(app.getHttpServer()).get('/api/v1/tags');
     expect(res.status).toBe(200);
-    const row = (res.body.data as Array<{ id: string; pathCount: number; courseCount: number }>)
-      .find((r) => r.id === tag.id);
+    const row = (
+      res.body.data as Array<{
+        id: string;
+        pathCount: number;
+        courseCount: number;
+      }>
+    ).find((r) => r.id === tag.id);
     expect(row?.pathCount).toBe(2);
     expect(row?.courseCount).toBe(1);
   });

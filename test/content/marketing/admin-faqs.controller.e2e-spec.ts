@@ -23,8 +23,7 @@ describe('Admin /api/v1/admin/.../faqs', () => {
     await prisma.$disconnect();
   });
 
-  const authed = (req: request.Test) =>
-    req.set('Authorization', adminBearer);
+  const authed = (req: request.Test) => req.set('Authorization', adminBearer);
 
   async function seedPath() {
     const cat = await prisma.category.create({
@@ -105,8 +104,9 @@ describe('Admin /api/v1/admin/.../faqs', () => {
 
   it('returns 404 on missing owner', async () => {
     const res = await authed(
-      request(app.getHttpServer())
-        .get('/api/v1/admin/paths/00000000-0000-0000-0000-000000000001/faqs'),
+      request(app.getHttpServer()).get(
+        '/api/v1/admin/paths/00000000-0000-0000-0000-000000000001/faqs',
+      ),
     );
     expect(res.status).toBe(404);
   });

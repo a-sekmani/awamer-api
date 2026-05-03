@@ -56,7 +56,9 @@ describe('ReorderItemsDto', () => {
   it('DTO-T05 — items missing entirely is rejected', async () => {
     const errs = await check({});
     expect(errs.length).toBeGreaterThan(0);
-    expect(flattenMessages(errs).join(' ').toLowerCase()).toMatch(/items|array/);
+    expect(flattenMessages(errs).join(' ').toLowerCase()).toMatch(
+      /items|array/,
+    );
   });
 
   it('DTO-T06 — non-UUID id is rejected', async () => {
@@ -68,13 +70,17 @@ describe('ReorderItemsDto', () => {
   it('DTO-T07 — negative sortOrder is rejected', async () => {
     const errs = await check({ items: [{ id: UUID_A, sortOrder: -1 }] });
     expect(errs.length).toBeGreaterThan(0);
-    expect(flattenMessages(errs).join(' ').toLowerCase()).toMatch(/sortorder|min|less than/);
+    expect(flattenMessages(errs).join(' ').toLowerCase()).toMatch(
+      /sortorder|min|less than/,
+    );
   });
 
   it('DTO-T08 — non-integer sortOrder (1.5) is rejected', async () => {
     const errs = await check({ items: [{ id: UUID_A, sortOrder: 1.5 }] });
     expect(errs.length).toBeGreaterThan(0);
-    expect(flattenMessages(errs).join(' ').toLowerCase()).toMatch(/sortorder|integer/);
+    expect(flattenMessages(errs).join(' ').toLowerCase()).toMatch(
+      /sortorder|integer/,
+    );
   });
 
   it('DTO-T09 — duplicate ids is rejected with the custom duplicate-ids message', async () => {

@@ -352,7 +352,11 @@ describe('SubmitOnboardingDto', () => {
 
   it('should reject non-array responses (e.g., object)', async () => {
     const dto = plainToInstance(SubmitOnboardingDto, {
-      responses: { questionKey: 'background', answer: 'student', stepNumber: 1 },
+      responses: {
+        questionKey: 'background',
+        answer: 'student',
+        stepNumber: 1,
+      },
     });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);

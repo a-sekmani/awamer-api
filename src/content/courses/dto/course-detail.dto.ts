@@ -1,9 +1,6 @@
 import { CourseLevelFilter } from './list-courses.query.dto';
 import { CoursePathRefDto } from './course-summary.dto';
-import {
-  CategoryRefDto,
-  TagRefDto,
-} from '../../paths/dto/path-summary.dto';
+import { CategoryRefDto, TagRefDto } from '../../paths/dto/path-summary.dto';
 import {
   CertificateDto,
   FaqDto,

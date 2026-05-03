@@ -72,7 +72,14 @@ const mockUser = {
   createdAt: new Date(),
   updatedAt: new Date(),
   profile: mockProfile,
-  roles: [{ id: 'role-uuid', userId: 'user-uuid', role: 'LEARNER', createdAt: new Date() }],
+  roles: [
+    {
+      id: 'role-uuid',
+      userId: 'user-uuid',
+      role: 'LEARNER',
+      createdAt: new Date(),
+    },
+  ],
   subscriptions: [mockSubscription],
 };
 
@@ -83,7 +90,9 @@ const mockTx = {
   },
   userProfile: {
     updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-    findUnique: jest.fn().mockResolvedValue({ ...mockProfile, onboardingCompleted: true }),
+    findUnique: jest
+      .fn()
+      .mockResolvedValue({ ...mockProfile, onboardingCompleted: true }),
   },
   user: {
     update: jest.fn().mockResolvedValue({}),
@@ -255,9 +264,7 @@ describe('UsersService', () => {
     it('should handle empty body gracefully', async () => {
       mockPrismaService.user.update.mockResolvedValue(mockUser);
 
-      await expect(
-        service.updateUser('user-uuid', {}),
-      ).resolves.toBeDefined();
+      await expect(service.updateUser('user-uuid', {})).resolves.toBeDefined();
 
       expect(mockPrismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-uuid' },
@@ -371,7 +378,10 @@ describe('UsersService', () => {
         fail('Expected BadRequestException');
       } catch (error) {
         expect(error).toBeInstanceOf(BadRequestException);
-        const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+        const response = (error as BadRequestException).getResponse() as Record<
+          string,
+          unknown
+        >;
         expect(response.errorCode).toBe(ErrorCode.WRONG_CURRENT_PASSWORD);
       }
     });
@@ -406,7 +416,11 @@ describe('UsersService', () => {
     const validDto = {
       responses: [
         { questionKey: 'background', answer: 'student', stepNumber: 1 },
-        { questionKey: 'interests', items: ['ai', 'programming'], stepNumber: 2 },
+        {
+          questionKey: 'interests',
+          items: ['ai', 'programming'],
+          stepNumber: 2,
+        },
         { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
       ],
     };
@@ -444,14 +458,16 @@ describe('UsersService', () => {
       it('should create exactly 3 OnboardingResponse records', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        const callData = mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
+        const callData =
+          mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
         expect(callData).toHaveLength(3);
       });
 
       it('should include userId in each response record', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        const callData = mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
+        const callData =
+          mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
         callData.forEach((r: { userId: string }) => {
           expect(r.userId).toBe('user-uuid');
         });
@@ -483,7 +499,9 @@ describe('UsersService', () => {
 
         expect(mockTx.userProfile.updateMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            data: expect.objectContaining({ interests: '["ai","programming"]' }),
+            data: expect.objectContaining({
+              interests: '["ai","programming"]',
+            }),
           }),
         );
       });
@@ -491,7 +509,8 @@ describe('UsersService', () => {
       it('should JSON-serialize interests items into the OnboardingResponse.answer column', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        const callData = mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
+        const callData =
+          mockTx.onboardingResponse.createMany.mock.calls[0][0].data;
         const interestsRow = callData.find(
           (r: { questionKey: string }) => r.questionKey === 'interests',
         );
@@ -511,7 +530,10 @@ describe('UsersService', () => {
       it('should fire analyticsService.capture with onboarding_completed', async () => {
         await service.submitOnboarding('user-uuid', validDto);
 
-        expect(mockAnalyticsService.capture).toHaveBeenCalledWith('user-uuid', 'onboarding_completed');
+        expect(mockAnalyticsService.capture).toHaveBeenCalledWith(
+          'user-uuid',
+          'onboarding_completed',
+        );
       });
 
       it('should use prisma.$transaction for atomicity', async () => {
@@ -532,9 +554,13 @@ describe('UsersService', () => {
       });
 
       it('should throw on transaction failure (rollback)', async () => {
-        mockPrismaService.$transaction.mockRejectedValue(new Error('Transaction failed'));
+        mockPrismaService.$transaction.mockRejectedValue(
+          new Error('Transaction failed'),
+        );
 
-        await expect(service.submitOnboarding('user-uuid', validDto)).rejects.toThrow('Transaction failed');
+        await expect(
+          service.submitOnboarding('user-uuid', validDto),
+        ).rejects.toThrow('Transaction failed');
       });
     });
 
@@ -609,7 +635,9 @@ describe('UsersService', () => {
       it('should throw ONBOARDING_ALREADY_COMPLETED when the conditional updateMany matches no rows', async () => {
         mockTx.userProfile.updateMany.mockResolvedValue({ count: 0 });
 
-        await expect(service.submitOnboarding('user-uuid', validDto)).rejects.toThrow('Onboarding already completed');
+        await expect(
+          service.submitOnboarding('user-uuid', validDto),
+        ).rejects.toThrow('Onboarding already completed');
       });
 
       it('should throw if "background" questionKey is missing', async () => {
@@ -621,7 +649,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Missing required questionKey: background');
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).rejects.toThrow('Missing required questionKey: background');
       });
 
       it('should throw if "interests" questionKey is missing', async () => {
@@ -633,7 +663,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Missing required questionKey: interests');
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).rejects.toThrow('Missing required questionKey: interests');
       });
 
       it('should throw if "goals" questionKey is missing', async () => {
@@ -645,7 +677,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('Missing required questionKey: goals');
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).rejects.toThrow('Missing required questionKey: goals');
       });
 
       it('should throw if background stepNumber is not 1', async () => {
@@ -657,7 +691,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('background must have stepNumber 1');
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).rejects.toThrow('background must have stepNumber 1');
       });
 
       it('should throw if interests stepNumber is not 2', async () => {
@@ -669,7 +705,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('interests must have stepNumber 2');
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).rejects.toThrow('interests must have stepNumber 2');
       });
 
       it('should throw if goals stepNumber is not 3', async () => {
@@ -681,7 +719,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).rejects.toThrow('goals must have stepNumber 3');
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).rejects.toThrow('goals must have stepNumber 3');
       });
 
       const expectErrorCode = async (
@@ -693,10 +733,14 @@ describe('UsersService', () => {
           throw new Error('Expected BadRequestException');
         } catch (error) {
           expect(error).toBeInstanceOf(BadRequestException);
-          const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+          const response = (
+            error as BadRequestException
+          ).getResponse() as Record<string, unknown>;
           expect(response.errorCode).toBe(expectedCode);
           // Ensure no user-supplied value is reflected in the message
-          expect(String(response.message)).not.toMatch(/astronaut|become_famous|cooking|not-json/);
+          expect(String(response.message)).not.toMatch(
+            /astronaut|become_famous|cooking|not-json/,
+          );
         }
       };
 
@@ -706,7 +750,11 @@ describe('UsersService', () => {
             responses: [
               { questionKey: 'background', answer: 'astronaut', stepNumber: 1 },
               { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+              {
+                questionKey: 'goals',
+                answer: 'learn_new_skill',
+                stepNumber: 3,
+              },
             ],
           },
           ErrorCode.INVALID_BACKGROUND,
@@ -740,7 +788,9 @@ describe('UsersService', () => {
           fail('Expected BadRequestException');
         } catch (error) {
           expect(error).toBeInstanceOf(BadRequestException);
-          const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
+          const response = (
+            error as BadRequestException
+          ).getResponse() as Record<string, unknown>;
           expect(response.errorCode).toBe('ONBOARDING_ALREADY_COMPLETED');
         }
       });
@@ -780,31 +830,51 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).resolves.not.toThrow();
       });
 
       it('should accept all valid background values one by one', async () => {
         for (const bg of ['student', 'freelancer', 'employee', 'job_seeker']) {
           jest.clearAllMocks();
-          mockPrismaService.userProfile.findUnique.mockResolvedValue({ ...mockProfile, onboardingCompleted: false });
+          mockPrismaService.userProfile.findUnique.mockResolvedValue({
+            ...mockProfile,
+            onboardingCompleted: false,
+          });
           mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
 
           const dto = {
             responses: [
               { questionKey: 'background', answer: bg, stepNumber: 1 },
               { questionKey: 'interests', items: ['ai'], stepNumber: 2 },
-              { questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+              {
+                questionKey: 'goals',
+                answer: 'learn_new_skill',
+                stepNumber: 3,
+              },
             ],
           };
 
-          await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+          await expect(
+            service.submitOnboarding('user-uuid', dto),
+          ).resolves.not.toThrow();
         }
       });
 
       it('should accept all valid goal values one by one', async () => {
-        for (const goal of ['learn_new_skill', 'level_up', 'advance_career', 'switch_career', 'build_project']) {
+        for (const goal of [
+          'learn_new_skill',
+          'level_up',
+          'advance_career',
+          'switch_career',
+          'build_project',
+        ]) {
           jest.clearAllMocks();
-          mockPrismaService.userProfile.findUnique.mockResolvedValue({ ...mockProfile, onboardingCompleted: false });
+          mockPrismaService.userProfile.findUnique.mockResolvedValue({
+            ...mockProfile,
+            onboardingCompleted: false,
+          });
           mockPrismaService.$transaction.mockImplementation((cb) => cb(mockTx));
 
           const dto = {
@@ -815,12 +885,19 @@ describe('UsersService', () => {
             ],
           };
 
-          await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+          await expect(
+            service.submitOnboarding('user-uuid', dto),
+          ).resolves.not.toThrow();
         }
       });
 
       it('should accept all valid interest values', async () => {
-        const allInterests = ['programming', 'data_science', 'ai', 'mobile_dev'];
+        const allInterests = [
+          'programming',
+          'data_science',
+          'ai',
+          'mobile_dev',
+        ];
 
         const dto = {
           responses: [
@@ -830,7 +907,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).resolves.not.toThrow();
       });
 
       it('should accept interests with exactly 4 items (maximum)', async () => {
@@ -846,7 +925,9 @@ describe('UsersService', () => {
           ],
         };
 
-        await expect(service.submitOnboarding('user-uuid', dto)).resolves.not.toThrow();
+        await expect(
+          service.submitOnboarding('user-uuid', dto),
+        ).resolves.not.toThrow();
       });
     });
   });

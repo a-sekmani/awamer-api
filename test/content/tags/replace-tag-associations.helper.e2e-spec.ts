@@ -72,15 +72,26 @@ describe('ReplaceTagAssociationsHelper (e2e)', () => {
 
     it('empty array removes all associations', async () => {
       const { path, tagA } = await seedCtx();
-      await prisma.pathTag.create({ data: { pathId: path.id, tagId: tagA.id } });
+      await prisma.pathTag.create({
+        data: { pathId: path.id, tagId: tagA.id },
+      });
       await helper.replaceForPath(path.id, []);
-      expect(await prisma.pathTag.count({ where: { pathId: path.id } })).toBe(0);
+      expect(await prisma.pathTag.count({ where: { pathId: path.id } })).toBe(
+        0,
+      );
     });
 
     it('deduplicates input', async () => {
       const { path, tagA, tagB } = await seedCtx();
-      await helper.replaceForPath(path.id, [tagA.id, tagB.id, tagA.id, tagB.id]);
-      expect(await prisma.pathTag.count({ where: { pathId: path.id } })).toBe(2);
+      await helper.replaceForPath(path.id, [
+        tagA.id,
+        tagB.id,
+        tagA.id,
+        tagB.id,
+      ]);
+      expect(await prisma.pathTag.count({ where: { pathId: path.id } })).toBe(
+        2,
+      );
     });
 
     it('nonexistent tag id rolls back and keeps prior state', async () => {

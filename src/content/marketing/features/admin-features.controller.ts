@@ -73,11 +73,7 @@ export class AdminFeaturesController {
     @Param('ownerId', ParseUUIDPipe) ownerId: string,
     @Body() dto: ReorderItemsDto,
   ): Promise<FeatureResponseDto[]> {
-    return this.features.reorder(
-      MarketingOwnerType.PATH,
-      ownerId,
-      dto.itemIds,
-    );
+    return this.features.reorder(MarketingOwnerType.PATH, ownerId, dto.itemIds);
   }
 
   @Patch('courses/:ownerId/features/reorder')

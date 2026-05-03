@@ -30,10 +30,7 @@ describe('ReorderHelper', () => {
       $transaction: jest.fn((ops) => Promise.resolve(ops)),
     };
     const moduleRef = await Test.createTestingModule({
-      providers: [
-        ReorderHelper,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [ReorderHelper, { provide: PrismaService, useValue: prisma }],
     }).compile();
     helper = moduleRef.get(ReorderHelper);
   });
@@ -80,10 +77,7 @@ describe('ReorderHelper', () => {
   });
 
   it('rejects input containing a foreign id', async () => {
-    prisma.testimonial.findMany.mockResolvedValue([
-      { id: 'a' },
-      { id: 'b' },
-    ]);
+    prisma.testimonial.findMany.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
     await expect(
       helper.reorder('testimonial', MarketingOwnerType.COURSE, 'c1', [
         'a',

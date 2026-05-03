@@ -38,10 +38,12 @@ describe('Onboarding (e2e)', () => {
   }
 
   /** Create a user in the DB and return their id + a signed JWT cookie string */
-  async function createTestUser(opts: {
-    emailVerified?: boolean;
-    onboardingCompleted?: boolean;
-  } = {}) {
+  async function createTestUser(
+    opts: {
+      emailVerified?: boolean;
+      onboardingCompleted?: boolean;
+    } = {},
+  ) {
     const email = uniqueEmail();
     const { emailVerified = false, onboardingCompleted = false } = opts;
 
@@ -92,7 +94,9 @@ describe('Onboarding (e2e)', () => {
       stepNumber: overrides?.interestsStep ?? 2,
     };
     interestsEntry.items =
-      overrides && 'items' in overrides ? overrides.items : ['ai', 'cybersecurity'];
+      overrides && 'items' in overrides
+        ? overrides.items
+        : ['ai', 'cybersecurity'];
 
     return {
       responses: [
@@ -350,9 +354,7 @@ describe('Onboarding (e2e)', () => {
         where: { userId },
       });
       expect(profile!.background).toBe('employee');
-      expect(profile!.interests).toBe(
-        JSON.stringify(['cloud_devops', 'iot']),
-      );
+      expect(profile!.interests).toBe(JSON.stringify(['cloud_devops', 'iot']));
       expect(profile!.goals).toBe('advance_career');
       expect(profile!.onboardingCompleted).toBe(true);
     });
@@ -1071,9 +1073,24 @@ describe('Onboarding (e2e)', () => {
           await tx.onboardingResponse.deleteMany({ where: { userId } });
           await tx.onboardingResponse.createMany({
             data: [
-              { userId, questionKey: 'background', answer: 'student', stepNumber: 1 },
-              { userId, questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
-              { userId, questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+              {
+                userId,
+                questionKey: 'background',
+                answer: 'student',
+                stepNumber: 1,
+              },
+              {
+                userId,
+                questionKey: 'interests',
+                answer: '["ai"]',
+                stepNumber: 2,
+              },
+              {
+                userId,
+                questionKey: 'goals',
+                answer: 'learn_new_skill',
+                stepNumber: 3,
+              },
             ],
           });
           // Simulate failure during profile update
@@ -1155,9 +1172,7 @@ describe('Onboarding (e2e)', () => {
       });
       expect(profile!.onboardingCompleted).toBe(true);
       expect(profile!.background).toBe('freelancer');
-      expect(profile!.interests).toBe(
-        JSON.stringify(['data_science', 'iot']),
-      );
+      expect(profile!.interests).toBe(JSON.stringify(['data_science', 'iot']));
       expect(profile!.goals).toBe('build_project');
     });
   });
@@ -1187,10 +1202,7 @@ describe('Onboarding (e2e)', () => {
         .expect(200);
 
       expect(captureSpy).toHaveBeenCalledTimes(1);
-      expect(captureSpy).toHaveBeenCalledWith(
-        userId,
-        'onboarding_completed',
-      );
+      expect(captureSpy).toHaveBeenCalledWith(userId, 'onboarding_completed');
     });
 
     it('capture is NOT called when onboarding submission fails validation', async () => {
@@ -1432,9 +1444,19 @@ describe('Onboarding (e2e)', () => {
       // Seed some stale onboarding responses manually
       await prisma.onboardingResponse.createMany({
         data: [
-          { userId, questionKey: 'background', answer: 'student', stepNumber: 1 },
+          {
+            userId,
+            questionKey: 'background',
+            answer: 'student',
+            stepNumber: 1,
+          },
           { userId, questionKey: 'interests', answer: '["ai"]', stepNumber: 2 },
-          { userId, questionKey: 'goals', answer: 'learn_new_skill', stepNumber: 3 },
+          {
+            userId,
+            questionKey: 'goals',
+            answer: 'learn_new_skill',
+            stepNumber: 3,
+          },
         ],
       });
 
@@ -1638,8 +1660,10 @@ describe('Onboarding (e2e)', () => {
       expect(onboardingCalls).toHaveLength(1);
 
       // Only the winner should have a fresh access_token / refresh_token cookie set
-      const winnerCookies = (winner.headers['set-cookie'] as unknown as string[]) ?? [];
-      const loserCookies = (loser.headers['set-cookie'] as unknown as string[]) ?? [];
+      const winnerCookies =
+        (winner.headers['set-cookie'] as unknown as string[]) ?? [];
+      const loserCookies =
+        (loser.headers['set-cookie'] as unknown as string[]) ?? [];
       expect(
         winnerCookies.some((c: string) => c.startsWith('access_token=')),
       ).toBe(true);

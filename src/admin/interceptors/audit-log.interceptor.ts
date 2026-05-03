@@ -93,7 +93,9 @@ export class AuditLogInterceptor implements NestInterceptor {
   private buildMetadata(req: AdminRequest): AdminAuditMetadata {
     const route = req.route!.path;
     const userAgentRaw = req.headers?.['user-agent'];
-    const userAgent = Array.isArray(userAgentRaw) ? userAgentRaw[0] : userAgentRaw;
+    const userAgent = Array.isArray(userAgentRaw)
+      ? userAgentRaw[0]
+      : userAgentRaw;
 
     return {
       userId: req.user?.userId ?? '',

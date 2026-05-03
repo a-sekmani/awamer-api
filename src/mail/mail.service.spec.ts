@@ -23,9 +23,7 @@ describe('MailService', () => {
     service = module.get<MailService>(MailService);
 
     consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    logSpy = jest
-      .spyOn((service as any).logger, 'log')
-      .mockImplementation();
+    logSpy = jest.spyOn((service as any).logger, 'log').mockImplementation();
     debugSpy = jest
       .spyOn((service as any).logger, 'debug')
       .mockImplementation();
@@ -50,11 +48,7 @@ describe('MailService', () => {
     });
 
     it('should not call the SES/logger path in non-production', async () => {
-      await service.sendVerificationEmail(
-        'test@example.com',
-        '123456',
-        'Test',
-      );
+      await service.sendVerificationEmail('test@example.com', '123456', 'Test');
 
       expect(logSpy).not.toHaveBeenCalled();
       expect(debugSpy).not.toHaveBeenCalled();
@@ -105,11 +99,7 @@ describe('MailService', () => {
     });
 
     it('should not use console.log in production', async () => {
-      await service.sendVerificationEmail(
-        'test@example.com',
-        '123456',
-        'Test',
-      );
+      await service.sendVerificationEmail('test@example.com', '123456', 'Test');
 
       // console.log should not have been called with verification code
       const consoleOutput = consoleSpy.mock.calls.map((c) => c[0]).join('\n');

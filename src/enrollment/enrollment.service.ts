@@ -237,10 +237,7 @@ export class EnrollmentService {
    * course enrollment (for standalone courses) or a path enrollment for the
    * course's parent path. Non-ACTIVE statuses return false (clarification Q3).
    */
-  async hasAccessToCourse(
-    userId: string,
-    courseId: string,
-  ): Promise<boolean> {
+  async hasAccessToCourse(userId: string, courseId: string): Promise<boolean> {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       select: { id: true, pathId: true },

@@ -43,7 +43,8 @@ describe('CleanupService', () => {
       mockPrismaService.rateLimitedRequest.deleteMany,
     ).toHaveBeenCalledTimes(1);
 
-    const call = mockPrismaService.rateLimitedRequest.deleteMany.mock.calls[0][0];
+    const call =
+      mockPrismaService.rateLimitedRequest.deleteMany.mock.calls[0][0];
     const cutoff = call.where.createdAt.lt as Date;
 
     // The cutoff should be approximately 24 hours ago
@@ -59,7 +60,8 @@ describe('CleanupService', () => {
     await service.cleanupExpiredRateLimits();
 
     // The query uses `lt` (less than) cutoff, so newer records are excluded
-    const call = mockPrismaService.rateLimitedRequest.deleteMany.mock.calls[0][0];
+    const call =
+      mockPrismaService.rateLimitedRequest.deleteMany.mock.calls[0][0];
     expect(call.where.createdAt.lt).toBeInstanceOf(Date);
   });
 
@@ -68,8 +70,6 @@ describe('CleanupService', () => {
       count: 0,
     });
 
-    await expect(
-      service.cleanupExpiredRateLimits(),
-    ).resolves.not.toThrow();
+    await expect(service.cleanupExpiredRateLimits()).resolves.not.toThrow();
   });
 });

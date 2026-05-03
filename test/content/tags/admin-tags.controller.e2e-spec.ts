@@ -40,12 +40,17 @@ describe('Admin /api/v1/admin/tags', () => {
         request(app.getHttpServer()).get('/api/v1/admin/tags'),
       );
       expect(res.status).toBe(200);
-      const slugs = (res.body.data as Array<{ slug: string; status: string }>).map(
-        (r) => r.slug,
-      );
+      const slugs = (
+        res.body.data as Array<{ slug: string; status: string }>
+      ).map((r) => r.slug);
       expect(slugs).toEqual(['alpha', 'beta', 'charlie']);
-      const alpha = (res.body.data as Array<{ slug: string; status: string; createdAt: string }>)
-        .find((r) => r.slug === 'alpha');
+      const alpha = (
+        res.body.data as Array<{
+          slug: string;
+          status: string;
+          createdAt: string;
+        }>
+      ).find((r) => r.slug === 'alpha');
       expect(alpha?.status).toBe('HIDDEN');
       expect(typeof alpha?.createdAt).toBe('string');
     });
@@ -72,7 +77,9 @@ describe('Admin /api/v1/admin/tags', () => {
       const get = await authed(
         request(app.getHttpServer()).get('/api/v1/admin/tags'),
       );
-      const slugs = (get.body.data as Array<{ slug: string }>).map((r) => r.slug);
+      const slugs = (get.body.data as Array<{ slug: string }>).map(
+        (r) => r.slug,
+      );
       expect(slugs).toContain('new-tag');
     });
 
@@ -201,7 +208,9 @@ describe('Admin /api/v1/admin/tags', () => {
 
   describe('DELETE /api/v1/admin/tags/:id', () => {
     it('returns 204 and cascades PathTag/CourseTag rows', async () => {
-      const tag = await prisma.tag.create({ data: { name: 'Del', slug: 'del' } });
+      const tag = await prisma.tag.create({
+        data: { name: 'Del', slug: 'del' },
+      });
       const cat = await prisma.category.create({
         data: { name: 'C', slug: 'del-cat' },
       });
@@ -212,7 +221,9 @@ describe('Admin /api/v1/admin/tags', () => {
         data: { categoryId: cat.id, slug: 'del-c', title: 'C' },
       });
       await prisma.pathTag.create({ data: { pathId: p.id, tagId: tag.id } });
-      await prisma.courseTag.create({ data: { courseId: c.id, tagId: tag.id } });
+      await prisma.courseTag.create({
+        data: { courseId: c.id, tagId: tag.id },
+      });
 
       const res = await authed(
         request(app.getHttpServer()).delete(`/api/v1/admin/tags/${tag.id}`),
@@ -221,7 +232,9 @@ describe('Admin /api/v1/admin/tags', () => {
 
       expect(await prisma.tag.count({ where: { id: tag.id } })).toBe(0);
       expect(await prisma.pathTag.count({ where: { tagId: tag.id } })).toBe(0);
-      expect(await prisma.courseTag.count({ where: { tagId: tag.id } })).toBe(0);
+      expect(await prisma.courseTag.count({ where: { tagId: tag.id } })).toBe(
+        0,
+      );
     });
 
     it('returns 404 on nonexistent id', async () => {

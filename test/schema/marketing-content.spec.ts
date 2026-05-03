@@ -2,7 +2,9 @@ import { prisma, truncateAll } from './setup';
 import { MarketingOwnerType, TestimonialStatus } from '@prisma/client';
 
 async function ctx() {
-  const cat = await prisma.category.create({ data: { name: 'C', slug: 'mc-cat' } });
+  const cat = await prisma.category.create({
+    data: { name: 'C', slug: 'mc-cat' },
+  });
   const p = await prisma.path.create({
     data: { categoryId: cat.id, title: 'P', slug: 'mc-p' },
   });
@@ -32,7 +34,12 @@ describe('Polymorphic marketing content', () => {
       },
     });
     const q = await prisma.faq.create({
-      data: { ownerType: MarketingOwnerType.PATH, ownerId: p.id, question: 'q', answer: 'a' },
+      data: {
+        ownerType: MarketingOwnerType.PATH,
+        ownerId: p.id,
+        question: 'q',
+        answer: 'a',
+      },
     });
     const t = await prisma.testimonial.create({
       data: {
@@ -60,7 +67,12 @@ describe('Polymorphic marketing content', () => {
       },
     });
     const q = await prisma.faq.create({
-      data: { ownerType: MarketingOwnerType.COURSE, ownerId: c.id, question: 'q', answer: 'a' },
+      data: {
+        ownerType: MarketingOwnerType.COURSE,
+        ownerId: c.id,
+        question: 'q',
+        answer: 'a',
+      },
     });
     const t = await prisma.testimonial.create({
       data: {
@@ -106,8 +118,22 @@ describe('Polymorphic marketing content', () => {
     const { p } = await ctx();
     await prisma.feature.createMany({
       data: [
-        { ownerType: MarketingOwnerType.PATH, ownerId: p.id, icon: 'i', title: 'b', description: 'd', order: 2 },
-        { ownerType: MarketingOwnerType.PATH, ownerId: p.id, icon: 'i', title: 'a', description: 'd', order: 1 },
+        {
+          ownerType: MarketingOwnerType.PATH,
+          ownerId: p.id,
+          icon: 'i',
+          title: 'b',
+          description: 'd',
+          order: 2,
+        },
+        {
+          ownerType: MarketingOwnerType.PATH,
+          ownerId: p.id,
+          icon: 'i',
+          title: 'a',
+          description: 'd',
+          order: 1,
+        },
       ],
     });
     const rows = await prisma.feature.findMany({

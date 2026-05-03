@@ -69,7 +69,11 @@ type CourseRow = {
 function lowercaseLevel(value: string | null): CourseLevelFilter | null {
   if (!value) return null;
   const lower = value.toLowerCase();
-  if (lower === 'beginner' || lower === 'intermediate' || lower === 'advanced') {
+  if (
+    lower === 'beginner' ||
+    lower === 'intermediate' ||
+    lower === 'advanced'
+  ) {
     return lower;
   }
   return null;
@@ -80,7 +84,11 @@ function mapCategory(c: CategoryRow) {
 }
 
 function mapTags(tags: TagJoinRow[]) {
-  return tags.map((t) => ({ id: t.tag.id, name: t.tag.name, slug: t.tag.slug }));
+  return tags.map((t) => ({
+    id: t.tag.id,
+    name: t.tag.name,
+    slug: t.tag.slug,
+  }));
 }
 
 function asStringArray(value: unknown): string[] {

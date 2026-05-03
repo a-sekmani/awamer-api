@@ -1,17 +1,8 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Query } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
 import { CoursesService } from './courses.service';
 import { ListCoursesQueryDto } from './dto/list-courses.query.dto';
-import {
-  CourseSummaryDto,
-  PaginatedResponse,
-} from './dto/course-summary.dto';
+import { CourseSummaryDto, PaginatedResponse } from './dto/course-summary.dto';
 import { CourseDetailDto } from './dto/course-detail.dto';
 
 @Controller('courses')

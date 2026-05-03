@@ -72,10 +72,7 @@ describe('UsersController', () => {
     const dto = { name: 'Updated' };
     const result = await controller.updateUser(mockReq, dto);
 
-    expect(mockUsersService.updateUser).toHaveBeenCalledWith(
-      'user-uuid',
-      dto,
-    );
+    expect(mockUsersService.updateUser).toHaveBeenCalledWith('user-uuid', dto);
     expect(result).toEqual({ data: { user: mockUser }, message: 'Success' });
   });
 
@@ -124,7 +121,11 @@ describe('UsersController', () => {
     const dto = {
       responses: [{ questionKey: 'q', answer: 'a', stepNumber: 1 }],
     };
-    const result = await controller.submitOnboarding(mockReq, dto as any, mockRes);
+    const result = await controller.submitOnboarding(
+      mockReq,
+      dto as any,
+      mockRes,
+    );
 
     expect(mockUsersService.submitOnboarding).toHaveBeenCalledWith(
       'user-uuid',

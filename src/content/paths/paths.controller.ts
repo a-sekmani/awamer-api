@@ -1,17 +1,8 @@
-import {
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Query } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
 import { PathsService } from './paths.service';
 import { ListPathsQueryDto } from './dto/list-paths.query.dto';
-import {
-  PaginatedResponse,
-  PathSummaryDto,
-} from './dto/path-summary.dto';
+import { PaginatedResponse, PathSummaryDto } from './dto/path-summary.dto';
 import { PathDetailDto } from './dto/path-detail.dto';
 
 @Controller('paths')

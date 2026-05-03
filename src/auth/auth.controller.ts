@@ -47,7 +47,12 @@ export class AuthController {
   ) {
     const ip = req.ip || req.socket?.remoteAddress || 'unknown';
     const result = await this.authService.register(dto, ip);
-    this.setCookies(res, result.accessToken, result.refreshToken, result.cookieMaxAge);
+    this.setCookies(
+      res,
+      result.accessToken,
+      result.refreshToken,
+      result.cookieMaxAge,
+    );
     return { data: { user: result.user }, message: 'Registration successful' };
   }
 
@@ -60,7 +65,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
-    this.setCookies(res, result.accessToken, result.refreshToken, result.cookieMaxAge);
+    this.setCookies(
+      res,
+      result.accessToken,
+      result.refreshToken,
+      result.cookieMaxAge,
+    );
     return {
       data: { user: result.user },
       message: 'Login successful',
@@ -86,7 +96,12 @@ export class AuthController {
   ) {
     const refreshToken = req.cookies?.refresh_token;
     const result = await this.authService.refresh(refreshToken);
-    this.setCookies(res, result.accessToken, result.refreshToken, result.cookieMaxAge);
+    this.setCookies(
+      res,
+      result.accessToken,
+      result.refreshToken,
+      result.cookieMaxAge,
+    );
     return { data: { user: result.user }, message: 'Token refreshed' };
   }
 
@@ -142,8 +157,16 @@ export class AuthController {
   ) {
     const { userId } = req.user as { userId: string };
     const result = await this.authService.verifyEmail(userId, dto.code);
-    this.setCookies(res, result.accessToken, result.refreshToken, COOKIE_MAX_AGE_DEFAULT);
-    return { data: { emailVerified: result.emailVerified }, message: 'Email verified successfully' };
+    this.setCookies(
+      res,
+      result.accessToken,
+      result.refreshToken,
+      COOKIE_MAX_AGE_DEFAULT,
+    );
+    return {
+      data: { emailVerified: result.emailVerified },
+      message: 'Email verified successfully',
+    };
   }
 
   @Post('resend-verification')
@@ -156,7 +179,12 @@ export class AuthController {
     return { data: null, message: 'Verification code resent to your email' };
   }
 
-  private setCookies(res: Response, accessToken: string, refreshToken: string, refreshMaxAge: number) {
+  private setCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+    refreshMaxAge: number,
+  ) {
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: this.isProduction,

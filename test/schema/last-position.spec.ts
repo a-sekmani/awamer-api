@@ -5,7 +5,9 @@ async function ctx() {
   const user = await prisma.user.create({
     data: { name: 'U', email: 'lp@test.local', passwordHash: 'x' },
   });
-  const cat = await prisma.category.create({ data: { name: 'C', slug: 'lp-cat' } });
+  const cat = await prisma.category.create({
+    data: { name: 'C', slug: 'lp-cat' },
+  });
   const path = await prisma.path.create({
     data: { categoryId: cat.id, title: 'P', slug: 'lp-p' },
   });
@@ -28,10 +30,20 @@ async function ctx() {
     data: { courseId: standalone.id, title: 'S2', order: 1 },
   });
   const lesson1 = await prisma.lesson.create({
-    data: { sectionId: section1.id, title: 'L1', type: LessonType.TEXT, order: 1 },
+    data: {
+      sectionId: section1.id,
+      title: 'L1',
+      type: LessonType.TEXT,
+      order: 1,
+    },
   });
   const lesson2 = await prisma.lesson.create({
-    data: { sectionId: section2.id, title: 'L2', type: LessonType.TEXT, order: 1 },
+    data: {
+      sectionId: section2.id,
+      title: 'L2',
+      type: LessonType.TEXT,
+      order: 1,
+    },
   });
   return { user, path, standalone, section1, section2, lesson1, lesson2 };
 }
@@ -151,7 +163,12 @@ describe('LastPosition schema', () => {
   it('updates lessonId via update on existing LastPosition', async () => {
     const { user, path, section1, lesson1 } = await ctx();
     const newLesson = await prisma.lesson.create({
-      data: { sectionId: section1.id, title: 'L1b', type: LessonType.TEXT, order: 2 },
+      data: {
+        sectionId: section1.id,
+        title: 'L1b',
+        type: LessonType.TEXT,
+        order: 2,
+      },
     });
     const lp = await prisma.lastPosition.create({
       data: {

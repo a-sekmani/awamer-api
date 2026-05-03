@@ -52,7 +52,9 @@ describe('FaqsService', () => {
         delete: jest.fn(),
       },
     };
-    ownerValidator = { ensureOwnerExists: jest.fn().mockResolvedValue(undefined) };
+    ownerValidator = {
+      ensureOwnerExists: jest.fn().mockResolvedValue(undefined),
+    };
     reorderHelper = { reorder: jest.fn().mockResolvedValue(undefined) };
     cache = {
       invalidateOwner: jest.fn().mockResolvedValue(undefined),
@@ -82,7 +84,9 @@ describe('FaqsService', () => {
         answer: 'a',
       });
       expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
-      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith(
+        '/paths/some-slug',
+      );
     });
 
     it('update calls invalidateOwner and revalidatePath', async () => {

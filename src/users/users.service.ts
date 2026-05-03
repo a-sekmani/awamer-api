@@ -124,20 +124,14 @@ export class UsersService {
     const interestsResponse = dto.responses.find(
       (r) => r.questionKey === 'interests',
     )!;
-    const goalsResponse = dto.responses.find(
-      (r) => r.questionKey === 'goals',
-    )!;
+    const goalsResponse = dto.responses.find((r) => r.questionKey === 'goals')!;
 
     // 3. Validate stepNumber consistency
     if (backgroundResponse.stepNumber !== 1) {
-      throw new BadRequestException(
-        'background must have stepNumber 1',
-      );
+      throw new BadRequestException('background must have stepNumber 1');
     }
     if (interestsResponse.stepNumber !== 2) {
-      throw new BadRequestException(
-        'interests must have stepNumber 2',
-      );
+      throw new BadRequestException('interests must have stepNumber 2');
     }
     if (goalsResponse.stepNumber !== 3) {
       throw new BadRequestException('goals must have stepNumber 3');

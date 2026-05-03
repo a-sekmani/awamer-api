@@ -58,8 +58,7 @@ export class FaqsService {
         order,
       },
     });
-    const scope: 'path' | 'course' =
-      ownerType === 'PATH' ? 'path' : 'course';
+    const scope: 'path' | 'course' = ownerType === 'PATH' ? 'path' : 'course';
     await this.cache.invalidateOwner(scope, ownerId);
     const slug = await this.cache.slugFor(scope, ownerId);
     if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);
@@ -122,8 +121,7 @@ export class FaqsService {
   ): Promise<FaqResponseDto[]> {
     await this.ownerValidator.ensureOwnerExists(ownerType, ownerId);
     await this.reorderHelper.reorder('faq', ownerType, ownerId, itemIds);
-    const scope: 'path' | 'course' =
-      ownerType === 'PATH' ? 'path' : 'course';
+    const scope: 'path' | 'course' = ownerType === 'PATH' ? 'path' : 'course';
     await this.cache.invalidateOwner(scope, ownerId);
     const slug = await this.cache.slugFor(scope, ownerId);
     if (slug) await this.revalidation.revalidatePath(`/${scope}s/${slug}`);

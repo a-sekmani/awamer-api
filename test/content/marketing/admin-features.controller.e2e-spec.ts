@@ -152,10 +152,7 @@ describe('Admin /api/v1/admin/.../features', () => {
         request(app.getHttpServer())
           .patch(`/api/v1/admin/paths/${path.id}/features/reorder`)
           .send({
-            itemIds: [
-              c1.body.data.id,
-              '00000000-0000-0000-0000-000000000099',
-            ],
+            itemIds: [c1.body.data.id, '00000000-0000-0000-0000-000000000099'],
           }),
       );
       expect(res.status).toBe(400);

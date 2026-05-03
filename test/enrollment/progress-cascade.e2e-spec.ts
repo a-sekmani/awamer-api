@@ -203,7 +203,9 @@ describe('Progress cascade (e2e)', () => {
     expect(types).toEqual(['COURSE', 'PATH']);
 
     // Final database state: 3 certs total (2 course + 1 path).
-    const all = await prisma.certificate.findMany({ where: { userId: user.id } });
+    const all = await prisma.certificate.findMany({
+      where: { userId: user.id },
+    });
     expect(all).toHaveLength(3);
     expect(all.filter((c) => c.type === 'COURSE')).toHaveLength(2);
     expect(all.filter((c) => c.type === 'PATH')).toHaveLength(1);

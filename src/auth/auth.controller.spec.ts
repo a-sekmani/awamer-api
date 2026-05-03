@@ -38,7 +38,11 @@ const mockAuthService = {
   verifyResetToken: jest.fn().mockResolvedValue({ valid: true }),
   resetPassword: jest.fn().mockResolvedValue(undefined),
   sendVerificationCode: jest.fn().mockResolvedValue(undefined),
-  verifyEmail: jest.fn().mockResolvedValue({ emailVerified: true, accessToken: 'at', refreshToken: 'rt' }),
+  verifyEmail: jest.fn().mockResolvedValue({
+    emailVerified: true,
+    accessToken: 'at',
+    refreshToken: 'rt',
+  }),
 };
 
 const mockConfigService = {
@@ -205,7 +209,9 @@ describe('AuthController', () => {
     it('should return { valid: true } for a valid token', async () => {
       const result = await controller.verifyResetToken('valid_token');
 
-      expect(mockAuthService.verifyResetToken).toHaveBeenCalledWith('valid_token');
+      expect(mockAuthService.verifyResetToken).toHaveBeenCalledWith(
+        'valid_token',
+      );
       expect(result).toEqual({
         data: { valid: true },
         message: 'Token is valid',
@@ -214,10 +220,15 @@ describe('AuthController', () => {
 
     it('should propagate BadRequestException from service', async () => {
       mockAuthService.verifyResetToken.mockRejectedValueOnce(
-        new BadRequestException({ message: 'Invalid or expired reset token', errorCode: 'INVALID_RESET_TOKEN' }),
+        new BadRequestException({
+          message: 'Invalid or expired reset token',
+          errorCode: 'INVALID_RESET_TOKEN',
+        }),
       );
 
-      await expect(controller.verifyResetToken('bad_token')).rejects.toThrow(BadRequestException);
+      await expect(controller.verifyResetToken('bad_token')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -279,9 +290,13 @@ describe('AuthController', () => {
       const mockReq = { user: { userId: 'user-uuid' } } as any;
       const mockRes = { cookie: jest.fn() } as any;
 
-      const result = await controller.verifyEmail(mockReq, {
-        code: '123456',
-      } as any, mockRes);
+      const result = await controller.verifyEmail(
+        mockReq,
+        {
+          code: '123456',
+        } as any,
+        mockRes,
+      );
 
       expect(result).toEqual({
         data: { emailVerified: true },
@@ -408,7 +423,10 @@ describe('AuthController', () => {
     });
 
     it('should extract IP from request', async () => {
-      const mockReq = { ip: undefined, socket: { remoteAddress: '10.0.0.1' } } as any;
+      const mockReq = {
+        ip: undefined,
+        socket: { remoteAddress: '10.0.0.1' },
+      } as any;
 
       await controller.forgotPassword({ email: 'test@example.com' }, mockReq);
 

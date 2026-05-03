@@ -50,7 +50,9 @@ export class CertificatesService {
     });
     if (!course) return null;
 
-    const allLessonIds = course.sections.flatMap((s) => s.lessons.map((l) => l.id));
+    const allLessonIds = course.sections.flatMap((s) =>
+      s.lessons.map((l) => l.id),
+    );
     if (allLessonIds.length === 0) return null;
 
     const completed = await tx.lessonProgress.count({
@@ -219,7 +221,11 @@ export class CertificatesService {
 
     const subject =
       cert.type === CertificateType.PATH
-        ? { type: CertificateType.PATH, title: cert.path!.title, slug: cert.path!.slug }
+        ? {
+            type: CertificateType.PATH,
+            title: cert.path!.title,
+            slug: cert.path!.slug,
+          }
         : {
             type: CertificateType.COURSE,
             title: cert.course!.title,

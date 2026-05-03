@@ -27,7 +27,11 @@ function makeTx() {
     pathProgress: { upsert: jest.fn(), findUnique: jest.fn() },
     course: { findUnique: jest.fn(), findMany: jest.fn() },
     pathEnrollment: { findFirst: jest.fn() },
-    lastPosition: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+    lastPosition: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+    },
   };
 }
 
@@ -105,7 +109,9 @@ describe('ProgressService', () => {
       prisma.lessonProgress.findUnique.mockResolvedValue(null);
       prisma.lesson.findUnique.mockResolvedValue(lessonRow('p1'));
       // Pre-existing certs snapshot for the "newly-issued" classification.
-      (prisma as unknown as { certificate: { findFirst: jest.Mock } }).certificate.findFirst.mockResolvedValue(null);
+      (
+        prisma as unknown as { certificate: { findFirst: jest.Mock } }
+      ).certificate.findFirst.mockResolvedValue(null);
       tx.lessonProgress.upsert.mockResolvedValue({
         id: 'lp',
         status: ProgressStatus.COMPLETED,
@@ -193,7 +199,9 @@ describe('ProgressService', () => {
     it('surfaces the thrown error and does not populate certificatesIssued', async () => {
       prisma.lessonProgress.findUnique.mockResolvedValue(null);
       prisma.lesson.findUnique.mockResolvedValue(lessonRow(null));
-      (prisma as unknown as { certificate: { findFirst: jest.Mock } }).certificate.findFirst.mockResolvedValue(null);
+      (
+        prisma as unknown as { certificate: { findFirst: jest.Mock } }
+      ).certificate.findFirst.mockResolvedValue(null);
       tx.lessonProgress.upsert.mockResolvedValue({ id: 'lp' });
       tx.lesson.count.mockResolvedValue(1);
       tx.lessonProgress.count.mockResolvedValue(1);
@@ -226,8 +234,8 @@ describe('ProgressService', () => {
   it('throws NotFoundException when the lesson does not exist', async () => {
     prisma.lessonProgress.findUnique.mockResolvedValue(null);
     prisma.lesson.findUnique.mockResolvedValue(null);
-    await expect(service.completeLesson('u1', 'missing')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.completeLesson('u1', 'missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

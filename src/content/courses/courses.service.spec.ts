@@ -87,7 +87,10 @@ describe('CoursesService', () => {
 
   describe('listPublic', () => {
     it('cache hit → returns cached value', async () => {
-      const cached = { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } };
+      const cached = {
+        data: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+      };
       cache.get.mockResolvedValue(cached);
       const result = await service.listPublic(q());
       expect(result).toBe(cached);
@@ -186,7 +189,13 @@ describe('CoursesService', () => {
 
   describe('findDetailBySlug', () => {
     it('cache hit → returns cached without Prisma', async () => {
-      const cached = { course: {}, curriculum: [], features: [], faqs: [], testimonials: [] };
+      const cached = {
+        course: {},
+        curriculum: [],
+        features: [],
+        faqs: [],
+        testimonials: [],
+      };
       cache.get.mockResolvedValue(cached);
       const result = await service.findDetailBySlug('s');
       expect(result).toBe(cached);
@@ -246,9 +255,9 @@ describe('CoursesService', () => {
         fakeCourseRow({ isFree: true }),
       );
       const result = await service.findDetailBySlug('s');
-      expect(result.curriculum.every((s) => s.lessons.every((l) => l.isFree))).toBe(
-        true,
-      );
+      expect(
+        result.curriculum.every((s) => s.lessons.every((l) => l.isFree)),
+      ).toBe(true);
     });
 
     it('certificate mirrors course.isFree', async () => {

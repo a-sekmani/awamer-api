@@ -84,7 +84,13 @@ describe('JwtStrategy', () => {
 
     expect(result).not.toHaveProperty('iat');
     expect(result).not.toHaveProperty('exp');
-    expect(Object.keys(result)).toEqual(['userId', 'email', 'emailVerified', 'onboardingCompleted', 'roles']);
+    expect(Object.keys(result)).toEqual([
+      'userId',
+      'email',
+      'emailVerified',
+      'onboardingCompleted',
+      'roles',
+    ]);
   });
 
   it('should extract token from access_token cookie', () => {

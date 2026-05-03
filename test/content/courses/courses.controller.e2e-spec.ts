@@ -107,7 +107,9 @@ describe('Courses public discovery (e2e)', () => {
     }
   }
 
-  async function seedDetailFixture(opts: { isFree?: boolean; standalone?: boolean } = {}) {
+  async function seedDetailFixture(
+    opts: { isFree?: boolean; standalone?: boolean } = {},
+  ) {
     const cat = await prisma.category.create({
       data: { name: 'X', slug: 'c-det-cat-2', status: CategoryStatus.ACTIVE },
     });

@@ -38,8 +38,6 @@ export class OwnerValidator {
       await this.ensureCourseExists(ownerId);
       return;
     }
-    throw new NotFoundException(
-      `Unknown owner type '${ownerType as string}'`,
-    );
+    throw new NotFoundException(`Unknown owner type '${ownerType as string}'`);
   }
 }

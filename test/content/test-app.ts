@@ -33,7 +33,6 @@ export async function createTestApp(): Promise<{
     const redis = app.get<Redis>(REDIS_CLIENT);
     await redis.flushdb();
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn(
       `Redis flushdb skipped in test bootstrap: ${(err as Error).message}`,
     );

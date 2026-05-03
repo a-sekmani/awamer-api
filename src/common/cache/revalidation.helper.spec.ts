@@ -45,11 +45,17 @@ describe('RevalidationHelper', () => {
     });
     await helper.revalidatePath('/paths/my-slug');
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith('https://awamer.test/api/revalidate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret: 'super-secret', path: '/paths/my-slug' }),
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://awamer.test/api/revalidate',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: 'super-secret',
+          path: '/paths/my-slug',
+        }),
+      },
+    );
   });
 
   it('swallows fetch errors without propagating', async () => {

@@ -5,7 +5,9 @@ async function ctx() {
   const user = await prisma.user.create({
     data: { name: 'U', email: 'u@test.local', passwordHash: 'x' },
   });
-  const cat = await prisma.category.create({ data: { name: 'C', slug: 'e-cat' } });
+  const cat = await prisma.category.create({
+    data: { name: 'C', slug: 'e-cat' },
+  });
   const pathA = await prisma.path.create({
     data: { categoryId: cat.id, title: 'PA', slug: 'e-pa' },
   });
@@ -26,7 +28,11 @@ describe('Enrollment schema', () => {
   it('creates a PathEnrollment', async () => {
     const { user, pathA } = await ctx();
     const e = await prisma.pathEnrollment.create({
-      data: { userId: user.id, pathId: pathA.id, status: EnrollmentStatus.ACTIVE },
+      data: {
+        userId: user.id,
+        pathId: pathA.id,
+        status: EnrollmentStatus.ACTIVE,
+      },
     });
     expect(e.userId).toBe(user.id);
   });
@@ -45,12 +51,18 @@ describe('Enrollment schema', () => {
 
   it('same user can have a path AND course enrollment simultaneously', async () => {
     const { user, pathA, courseB } = await ctx();
-    await prisma.pathEnrollment.create({ data: { userId: user.id, pathId: pathA.id } });
+    await prisma.pathEnrollment.create({
+      data: { userId: user.id, pathId: pathA.id },
+    });
     await prisma.courseEnrollment.create({
       data: { userId: user.id, courseId: courseB.id },
     });
-    expect(await prisma.pathEnrollment.count({ where: { userId: user.id } })).toBe(1);
-    expect(await prisma.courseEnrollment.count({ where: { userId: user.id } })).toBe(1);
+    expect(
+      await prisma.pathEnrollment.count({ where: { userId: user.id } }),
+    ).toBe(1);
+    expect(
+      await prisma.courseEnrollment.count({ where: { userId: user.id } }),
+    ).toBe(1);
   });
 
   it('rejects a duplicate (userId, courseId) course enrollment', async () => {
@@ -67,7 +79,9 @@ describe('Enrollment schema', () => {
 
   it('path_enrollments: duplicate (userId, pathId) — depends on existing constraint', async () => {
     const { user, pathA } = await ctx();
-    await prisma.pathEnrollment.create({ data: { userId: user.id, pathId: pathA.id } });
+    await prisma.pathEnrollment.create({
+      data: { userId: user.id, pathId: pathA.id },
+    });
     // The existing schema has no @@unique on PathEnrollment; the spec test says
     // "rejects". This test documents the current behavior: if no unique exists,
     // a duplicate is allowed. If the project later adds @@unique, this test
@@ -83,7 +97,9 @@ describe('Enrollment schema', () => {
     );
     if (exists[0]?.exists) {
       await expect(
-        prisma.pathEnrollment.create({ data: { userId: user.id, pathId: pathA.id } }),
+        prisma.pathEnrollment.create({
+          data: { userId: user.id, pathId: pathA.id },
+        }),
       ).rejects.toThrow();
     } else {
       const second = await prisma.pathEnrollment.create({

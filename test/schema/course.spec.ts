@@ -74,7 +74,13 @@ describe('Course schema', () => {
     const cat = await makeCategory();
     const p = await makePath(cat.id);
     const c = await prisma.course.create({
-      data: { categoryId: cat.id, pathId: p.id, order: 1, slug: 'det', title: 'D' },
+      data: {
+        categoryId: cat.id,
+        pathId: p.id,
+        order: 1,
+        slug: 'det',
+        title: 'D',
+      },
     });
     const updated = await prisma.course.update({
       where: { id: c.id },
@@ -88,7 +94,13 @@ describe('Course schema', () => {
     const p1 = await makePath(cat.id, 'p-a');
     const p2 = await makePath(cat.id, 'p-b');
     const c = await prisma.course.create({
-      data: { categoryId: cat.id, pathId: p1.id, order: 1, slug: 'mv', title: 'M' },
+      data: {
+        categoryId: cat.id,
+        pathId: p1.id,
+        order: 1,
+        slug: 'mv',
+        title: 'M',
+      },
     });
     const updated = await prisma.course.update({
       where: { id: c.id },

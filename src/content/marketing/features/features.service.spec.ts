@@ -54,7 +54,9 @@ describe('FeaturesService', () => {
         delete: jest.fn(),
       },
     };
-    ownerValidator = { ensureOwnerExists: jest.fn().mockResolvedValue(undefined) };
+    ownerValidator = {
+      ensureOwnerExists: jest.fn().mockResolvedValue(undefined),
+    };
     reorderHelper = { reorder: jest.fn().mockResolvedValue(undefined) };
     cache = {
       invalidateOwner: jest.fn().mockResolvedValue(undefined),
@@ -86,28 +88,36 @@ describe('FeaturesService', () => {
       });
       expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
       expect(cache.slugFor).toHaveBeenCalledWith('path', 'p1');
-      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith(
+        '/paths/some-slug',
+      );
     });
 
     it('update calls invalidateOwner and revalidatePath', async () => {
       prisma.feature.update.mockResolvedValue(row('u', 0));
       await service.update('u', { title: 'new' });
       expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
-      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith(
+        '/paths/some-slug',
+      );
     });
 
     it('remove calls invalidateOwner and revalidatePath', async () => {
       prisma.feature.delete.mockResolvedValue(row('d', 0));
       await service.remove('d');
       expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
-      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith(
+        '/paths/some-slug',
+      );
     });
 
     it('reorder calls invalidateOwner and revalidatePath', async () => {
       prisma.feature.findMany.mockResolvedValue([]);
       await service.reorder(MarketingOwnerType.PATH, 'p1', []);
       expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
-      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith(
+        '/paths/some-slug',
+      );
     });
 
     it('skips revalidation when slugFor returns null', async () => {
@@ -170,7 +180,9 @@ describe('FeaturesService', () => {
         description: 'd',
       });
       expect(prisma.feature.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ order: 5 }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ order: 5 }),
+        }),
       );
     });
 
@@ -183,7 +195,9 @@ describe('FeaturesService', () => {
         description: 'd',
       });
       expect(prisma.feature.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ order: 0 }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ order: 0 }),
+        }),
       );
     });
 
@@ -224,9 +238,9 @@ describe('FeaturesService', () => {
           clientVersion: 'x',
         }),
       );
-      await expect(
-        service.update('id', { title: 'x' }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.update('id', { title: 'x' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -247,11 +261,10 @@ describe('FeaturesService', () => {
   describe('reorder', () => {
     it('delegates to ReorderHelper and returns the refreshed list', async () => {
       prisma.feature.findMany.mockResolvedValue([row('a', 0), row('b', 1)]);
-      const result = await service.reorder(
-        MarketingOwnerType.PATH,
-        'p1',
-        ['b', 'a'],
-      );
+      const result = await service.reorder(MarketingOwnerType.PATH, 'p1', [
+        'b',
+        'a',
+      ]);
       expect(reorderHelper.reorder).toHaveBeenCalledWith(
         'feature',
         MarketingOwnerType.PATH,

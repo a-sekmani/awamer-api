@@ -40,9 +40,13 @@ describe('Seed script', () => {
     expect(p?.tags.length).toBeGreaterThanOrEqual(3);
     expect(p?.courses.length).toBeGreaterThanOrEqual(2);
 
-    const features = await prisma.feature.findMany({ where: { ownerId: PATH_ID } });
+    const features = await prisma.feature.findMany({
+      where: { ownerId: PATH_ID },
+    });
     const faqs = await prisma.faq.findMany({ where: { ownerId: PATH_ID } });
-    const testimonials = await prisma.testimonial.findMany({ where: { ownerId: PATH_ID } });
+    const testimonials = await prisma.testimonial.findMany({
+      where: { ownerId: PATH_ID },
+    });
     expect(features.length).toBeGreaterThanOrEqual(3);
     expect(faqs.length).toBeGreaterThanOrEqual(3);
     expect(testimonials.length).toBeGreaterThanOrEqual(3);
@@ -64,14 +68,18 @@ describe('Seed script', () => {
   });
 
   it('standalone course exists with pathId=null and marketing content', async () => {
-    const c = await prisma.course.findUnique({ where: { id: STANDALONE_COURSE_ID } });
+    const c = await prisma.course.findUnique({
+      where: { id: STANDALONE_COURSE_ID },
+    });
     expect(c).toBeTruthy();
     expect(c?.pathId).toBeNull();
     expect(c?.order).toBeNull();
     const features = await prisma.feature.findMany({
       where: { ownerId: STANDALONE_COURSE_ID },
     });
-    const faqs = await prisma.faq.findMany({ where: { ownerId: STANDALONE_COURSE_ID } });
+    const faqs = await prisma.faq.findMany({
+      where: { ownerId: STANDALONE_COURSE_ID },
+    });
     const testimonials = await prisma.testimonial.findMany({
       where: { ownerId: STANDALONE_COURSE_ID },
     });

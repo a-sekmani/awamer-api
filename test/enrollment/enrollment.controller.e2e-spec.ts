@@ -13,10 +13,7 @@ const prisma: PrismaClient = testPrisma;
  * writes still require the matching `User` row to exist in the test DB, which
  * `seedUser` below handles.
  */
-async function signFor(
-  app: INestApplication,
-  userId: string,
-): Promise<string> {
+async function signFor(app: INestApplication, userId: string): Promise<string> {
   const jwt = app.get(JwtService);
   return (
     'Bearer ' +
@@ -65,7 +62,9 @@ async function seedStandaloneCourse(suffix: string) {
           {
             title: 'S2',
             order: 1,
-            lessons: { create: [{ title: 'L3', order: 0, type: 'TEXT' as const }] },
+            lessons: {
+              create: [{ title: 'L3', order: 0, type: 'TEXT' as const }],
+            },
           },
         ],
       },
@@ -97,7 +96,9 @@ async function seedPathWithCourses(suffix: string) {
           {
             title: 'S1',
             order: 0,
-            lessons: { create: [{ title: 'L1', order: 0, type: 'TEXT' as const }] },
+            lessons: {
+              create: [{ title: 'L1', order: 0, type: 'TEXT' as const }],
+            },
           },
         ],
       },
@@ -114,7 +115,9 @@ async function seedPathWithCourses(suffix: string) {
           {
             title: 'S1',
             order: 0,
-            lessons: { create: [{ title: 'L1', order: 0, type: 'TEXT' as const }] },
+            lessons: {
+              create: [{ title: 'L1', order: 0, type: 'TEXT' as const }],
+            },
           },
         ],
       },
@@ -189,7 +192,9 @@ describe('EnrollmentController (e2e)', () => {
       const user = await seedUser('c');
       const bearer = await signFor(app, user.id);
       const res = await request(app.getHttpServer())
-        .post('/api/v1/enrollments/courses/00000000-0000-0000-0000-000000000099')
+        .post(
+          '/api/v1/enrollments/courses/00000000-0000-0000-0000-000000000099',
+        )
         .set('Authorization', bearer);
       expect(res.status).toBe(404);
     });
@@ -231,7 +236,9 @@ describe('EnrollmentController (e2e)', () => {
               {
                 title: 'القسم الأول',
                 order: 0,
-                lessons: { create: [{ title: 'الدرس', order: 0, type: 'TEXT' as const }] },
+                lessons: {
+                  create: [{ title: 'الدرس', order: 0, type: 'TEXT' as const }],
+                },
               },
             ],
           },
@@ -356,7 +363,9 @@ describe('EnrollmentController (e2e)', () => {
     });
 
     it('returns 401 when unauthenticated', async () => {
-      const res = await request(app.getHttpServer()).get('/api/v1/enrollments/me');
+      const res = await request(app.getHttpServer()).get(
+        '/api/v1/enrollments/me',
+      );
       expect(res.status).toBe(401);
     });
   });
@@ -392,7 +401,9 @@ describe('EnrollmentController (e2e)', () => {
       const user = await seedUser('missing');
       const bearer = await signFor(app, user.id);
       const res = await request(app.getHttpServer())
-        .get('/api/v1/enrollments/me/courses/00000000-0000-0000-0000-000000000099')
+        .get(
+          '/api/v1/enrollments/me/courses/00000000-0000-0000-0000-000000000099',
+        )
         .set('Authorization', bearer);
       expect(res.status).toBe(404);
     });

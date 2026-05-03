@@ -1,4 +1,8 @@
-import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { RolesGuard } from './roles.guard';
@@ -50,11 +54,15 @@ describe('RolesGuard', () => {
 
   it('GUARD-T04 — no @Roles metadata + learner → denied (default-deny)', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
-    expect(() => guard.canActivate(makeContext({ roles: [Role.LEARNER] }))).toThrow(ForbiddenException);
+    expect(() =>
+      guard.canActivate(makeContext({ roles: [Role.LEARNER] })),
+    ).toThrow(ForbiddenException);
   });
 
   it('GUARD-T05 — multi-role @Roles(ADMIN, "EDITOR") with editor user → allowed', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([Role.ADMIN, 'EDITOR']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([Role.ADMIN, 'EDITOR']);
     expect(guard.canActivate(makeContext({ roles: ['EDITOR'] }))).toBe(true);
   });
 
@@ -75,6 +83,8 @@ describe('RolesGuard', () => {
 
   it('GUARD-T07 — empty @Roles() (zero args) is treated as missing → default-deny on learner', () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([]);
-    expect(() => guard.canActivate(makeContext({ roles: [Role.LEARNER] }))).toThrow(ForbiddenException);
+    expect(() =>
+      guard.canActivate(makeContext({ roles: [Role.LEARNER] })),
+    ).toThrow(ForbiddenException);
   });
 });

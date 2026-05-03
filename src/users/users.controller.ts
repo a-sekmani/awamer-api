@@ -102,11 +102,7 @@ export class UsersController {
     return { data: { profile }, message: 'Success' };
   }
 
-  private setCookies(
-    res: Response,
-    accessToken: string,
-    refreshToken: string,
-  ) {
+  private setCookies(res: Response, accessToken: string, refreshToken: string) {
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: this.isProduction,

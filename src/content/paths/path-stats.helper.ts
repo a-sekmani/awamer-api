@@ -52,9 +52,10 @@ export function computePathStats(path: PathLike): PathStats {
  * Generic enough to accept either a Path-shaped object (courses → sections →
  * lessons) or a Course-shaped object (sections → lessons).
  */
-export function applyIsFreeOverride(
-  parent: { courses?: CourseLike[]; sections?: SectionLike[] },
-): void {
+export function applyIsFreeOverride(parent: {
+  courses?: CourseLike[];
+  sections?: SectionLike[];
+}): void {
   if (parent.courses) {
     for (const course of parent.courses) {
       for (const section of course.sections) {

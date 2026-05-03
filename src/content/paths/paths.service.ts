@@ -10,25 +10,15 @@ import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PublicMarketingQueries } from '../marketing/helpers/public-queries.helper';
 import { ListPathsQueryDto } from './dto/list-paths.query.dto';
-import {
-  PaginatedResponse,
-  PathSummaryDto,
-} from './dto/path-summary.dto';
+import { PaginatedResponse, PathSummaryDto } from './dto/path-summary.dto';
 import { PathDetailDto } from './dto/path-detail.dto';
 import {
   applyIsFreeOverride,
   buildOrderBy,
   computePathStats,
 } from './path-stats.helper';
-import {
-  toPathDetailDto,
-  toPathSummaryDto,
-} from './path-mapper';
-import {
-  toFaqDto,
-  toFeatureDto,
-  toTestimonialDto,
-} from './marketing-mapper';
+import { toPathDetailDto, toPathSummaryDto } from './path-mapper';
+import { toFaqDto, toFeatureDto, toTestimonialDto } from './marketing-mapper';
 import { computeQueryHash } from './query-hash.helper';
 
 function buildPathListWhere(query: ListPathsQueryDto): Prisma.PathWhereInput {

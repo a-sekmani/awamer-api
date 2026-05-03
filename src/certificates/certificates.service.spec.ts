@@ -3,11 +3,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import {
-  CertificateType,
-  EnrollmentStatus,
-  Prisma,
-} from '@prisma/client';
+import { CertificateType, EnrollmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { CertificatesService } from './certificates.service';
@@ -78,7 +74,11 @@ describe('CertificatesService', () => {
     it('returns the existing cert without issuing when one already exists', async () => {
       const existing = baseCert();
       tx.certificate.findFirst.mockResolvedValue(existing);
-      const result = await service.checkCourseEligibility(tx as any, 'u1', 'c1');
+      const result = await service.checkCourseEligibility(
+        tx as any,
+        'u1',
+        'c1',
+      );
       expect(result).toBe(existing);
       expect(tx.certificate.create).not.toHaveBeenCalled();
       // FR-030: MUST NOT fire when returning a pre-existing cert.
@@ -92,7 +92,11 @@ describe('CertificatesService', () => {
         sections: [{ lessons: [{ id: 'l1' }, { id: 'l2' }] }],
       });
       tx.lessonProgress.count.mockResolvedValue(1); // only 1 of 2 complete
-      const result = await service.checkCourseEligibility(tx as any, 'u1', 'c1');
+      const result = await service.checkCourseEligibility(
+        tx as any,
+        'u1',
+        'c1',
+      );
       expect(result).toBeNull();
       expect(tx.certificate.create).not.toHaveBeenCalled();
       expect(analytics.capture).not.toHaveBeenCalled();
@@ -108,7 +112,11 @@ describe('CertificatesService', () => {
       tx.certificate.create.mockResolvedValue(
         baseCert({ id: 'new', type: CertificateType.COURSE }),
       );
-      const result = await service.checkCourseEligibility(tx as any, 'u1', 'c1');
+      const result = await service.checkCourseEligibility(
+        tx as any,
+        'u1',
+        'c1',
+      );
       expect(result!.id).toBe('new');
       expect(tx.certificate.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -233,7 +241,11 @@ describe('CertificatesService', () => {
         .mockRejectedValueOnce(makeP2002())
         .mockRejectedValueOnce(makeP2002())
         .mockResolvedValueOnce(baseCert({ id: 'retry-success' }));
-      const result = await service.checkCourseEligibility(tx as any, 'u1', 'c1');
+      const result = await service.checkCourseEligibility(
+        tx as any,
+        'u1',
+        'c1',
+      );
       expect(result!.id).toBe('retry-success');
       expect(tx.certificate.create).toHaveBeenCalledTimes(3);
       // FR-030: emission fires exactly once, not on each retry attempt.
@@ -342,9 +354,9 @@ describe('CertificatesService', () => {
       expect(result as unknown as Record<string, unknown>).not.toHaveProperty(
         'enrolledAt',
       );
-      expect(result.holder as unknown as Record<string, unknown>).not.toHaveProperty(
-        'email',
-      );
+      expect(
+        result.holder as unknown as Record<string, unknown>,
+      ).not.toHaveProperty('email');
     });
   });
 });

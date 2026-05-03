@@ -77,7 +77,7 @@ describe('CertificatesController (e2e)', () => {
   // GET /certificates/me (US6)
   // =========================================================================
   describe('GET /api/v1/certificates/me (US6)', () => {
-    it('returns all of the user\'s certificates sorted by issuedAt DESC', async () => {
+    it("returns all of the user's certificates sorted by issuedAt DESC", async () => {
       const { user, path, course } = await seedCtx('list');
       await prisma.certificate.create({
         data: {
@@ -152,7 +152,11 @@ describe('CertificatesController (e2e)', () => {
       expect(res.body.data).toMatchObject({
         valid: true,
         type: 'COURSE',
-        subject: { type: 'COURSE', title: 'Git Basics', slug: expect.any(String) },
+        subject: {
+          type: 'COURSE',
+          title: 'Git Basics',
+          slug: expect.any(String),
+        },
       });
       expect(res.body.data.holder.fullName).toBe('Ahmad verify');
     });
@@ -186,9 +190,13 @@ describe('CertificatesController (e2e)', () => {
       expect(json).not.toContain('passwordHash');
       expect(res.body.data.holder).toEqual({ fullName: 'Ahmad minimal' });
       // Only the allow-listed top-level keys.
-      expect(Object.keys(res.body.data).sort()).toEqual(
-        ['holder', 'issuedAt', 'subject', 'type', 'valid'],
-      );
+      expect(Object.keys(res.body.data).sort()).toEqual([
+        'holder',
+        'issuedAt',
+        'subject',
+        'type',
+        'valid',
+      ]);
     });
 
     // -------------------------------------------------------------------------

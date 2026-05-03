@@ -23,8 +23,7 @@ describe('Admin /api/v1/admin/.../testimonials', () => {
     await prisma.$disconnect();
   });
 
-  const authed = (req: request.Test) =>
-    req.set('Authorization', adminBearer);
+  const authed = (req: request.Test) => req.set('Authorization', adminBearer);
 
   async function seedPath() {
     const cat = await prisma.category.create({

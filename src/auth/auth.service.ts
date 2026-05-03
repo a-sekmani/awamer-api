@@ -113,7 +113,10 @@ export class AuthService {
     });
 
     const rememberMe = dto.rememberMe ?? false;
-    const { accessToken, refreshToken } = await this.generateTokens(user, rememberMe);
+    const { accessToken, refreshToken } = await this.generateTokens(
+      user,
+      rememberMe,
+    );
 
     try {
       await this.sendVerificationCode(user.id);
@@ -128,7 +131,9 @@ export class AuthService {
       user: this.sanitizeUser(user),
       accessToken,
       refreshToken,
-      cookieMaxAge: rememberMe ? COOKIE_MAX_AGE_REMEMBER : COOKIE_MAX_AGE_DEFAULT,
+      cookieMaxAge: rememberMe
+        ? COOKIE_MAX_AGE_REMEMBER
+        : COOKIE_MAX_AGE_DEFAULT,
     };
   }
 
@@ -184,7 +189,10 @@ export class AuthService {
     }
 
     const rememberMe = dto.rememberMe ?? false;
-    const { accessToken, refreshToken } = await this.generateTokens(user, rememberMe);
+    const { accessToken, refreshToken } = await this.generateTokens(
+      user,
+      rememberMe,
+    );
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -199,7 +207,9 @@ export class AuthService {
       user: this.sanitizeUser(user),
       accessToken,
       refreshToken,
-      cookieMaxAge: rememberMe ? COOKIE_MAX_AGE_REMEMBER : COOKIE_MAX_AGE_DEFAULT,
+      cookieMaxAge: rememberMe
+        ? COOKIE_MAX_AGE_REMEMBER
+        : COOKIE_MAX_AGE_DEFAULT,
     };
   }
 
@@ -252,17 +262,23 @@ export class AuthService {
     }
 
     // Maintain the original remember-me preference from the token's TTL
-    const wasRememberMe = payload.exp && payload.iat
-      ? (payload.exp - payload.iat) > 8 * 24 * 60 * 60 // > 8 days means it was 30d
-      : false;
+    const wasRememberMe =
+      payload.exp && payload.iat
+        ? payload.exp - payload.iat > 8 * 24 * 60 * 60 // > 8 days means it was 30d
+        : false;
 
-    const { accessToken, refreshToken } = await this.generateTokens(user, wasRememberMe);
+    const { accessToken, refreshToken } = await this.generateTokens(
+      user,
+      wasRememberMe,
+    );
 
     return {
       user: this.sanitizeUser(user),
       accessToken,
       refreshToken,
-      cookieMaxAge: wasRememberMe ? COOKIE_MAX_AGE_REMEMBER : COOKIE_MAX_AGE_DEFAULT,
+      cookieMaxAge: wasRememberMe
+        ? COOKIE_MAX_AGE_REMEMBER
+        : COOKIE_MAX_AGE_DEFAULT,
     };
   }
 
@@ -324,11 +340,10 @@ export class AuthService {
 
     // 1. Per-email cooldown: 1 request every 60 seconds
     const cooldownStart = new Date(now.getTime() - RATE_LIMIT_COOLDOWN_MS);
-    const recentRequest =
-      await this.prisma.rateLimitedRequest.findFirst({
-        where: { type, email, createdAt: { gte: cooldownStart } },
-        orderBy: { createdAt: 'desc' },
-      });
+    const recentRequest = await this.prisma.rateLimitedRequest.findFirst({
+      where: { type, email, createdAt: { gte: cooldownStart } },
+      orderBy: { createdAt: 'desc' },
+    });
 
     if (recentRequest) {
       const retryAfter = Math.ceil(
@@ -354,11 +369,10 @@ export class AuthService {
     });
 
     if (hourlyCount >= RATE_LIMIT_HOURLY_MAX) {
-      const oldestInWindow =
-        await this.prisma.rateLimitedRequest.findFirst({
-          where: { type, email, createdAt: { gte: hourStart } },
-          orderBy: { createdAt: 'asc' },
-        });
+      const oldestInWindow = await this.prisma.rateLimitedRequest.findFirst({
+        where: { type, email, createdAt: { gte: hourStart } },
+        orderBy: { createdAt: 'asc' },
+      });
       const retryAfter = oldestInWindow
         ? Math.ceil(
             (oldestInWindow.createdAt.getTime() +
@@ -384,11 +398,10 @@ export class AuthService {
     });
 
     if (dailyCount >= RATE_LIMIT_DAILY_MAX_PER_IP) {
-      const oldestInWindow =
-        await this.prisma.rateLimitedRequest.findFirst({
-          where: { type, ip, createdAt: { gte: dayStart } },
-          orderBy: { createdAt: 'asc' },
-        });
+      const oldestInWindow = await this.prisma.rateLimitedRequest.findFirst({
+        where: { type, ip, createdAt: { gte: dayStart } },
+        orderBy: { createdAt: 'asc' },
+      });
       const retryAfter = oldestInWindow
         ? Math.ceil(
             (oldestInWindow.createdAt.getTime() +
@@ -416,10 +429,7 @@ export class AuthService {
       });
     }
 
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await this.prisma.user.findFirst({
       where: {
@@ -589,7 +599,8 @@ export class AuthService {
     ]);
 
     const updatedUser = { ...user, emailVerified: true };
-    const { accessToken, refreshToken } = await this.generateTokens(updatedUser);
+    const { accessToken, refreshToken } =
+      await this.generateTokens(updatedUser);
 
     return { emailVerified: true, accessToken, refreshToken };
   }
@@ -619,7 +630,9 @@ export class AuthService {
 
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: rememberMe ? REFRESH_TOKEN_EXPIRY_REMEMBER : REFRESH_TOKEN_EXPIRY_DEFAULT,
+      expiresIn: rememberMe
+        ? REFRESH_TOKEN_EXPIRY_REMEMBER
+        : REFRESH_TOKEN_EXPIRY_DEFAULT,
     });
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, BCRYPT_ROUNDS);

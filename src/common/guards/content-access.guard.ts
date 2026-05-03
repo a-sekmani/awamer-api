@@ -65,7 +65,9 @@ export class ContentAccessGuard implements CanActivate {
     });
   }
 
-  private async hasActiveSubscription(_userId: string | undefined): Promise<boolean> {
+  private async hasActiveSubscription(
+    _userId: string | undefined,
+  ): Promise<boolean> {
     // TODO(subscriptions): replace with a real SubscriptionsService.isActive()
     // call once that service exists. Defaulting to true (allow) is the
     // documented ticket §13.3 fallback — EnrollmentGuard still rejects

@@ -14,20 +14,14 @@ import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PublicMarketingQueries } from '../marketing/helpers/public-queries.helper';
 import { ListCoursesQueryDto } from './dto/list-courses.query.dto';
-import {
-  CourseSummaryDto,
-  PaginatedResponse,
-} from './dto/course-summary.dto';
+import { CourseSummaryDto, PaginatedResponse } from './dto/course-summary.dto';
 import { CourseDetailDto } from './dto/course-detail.dto';
 import {
   buildCourseOrderBy,
   computeCourseStats,
   applyIsFreeOverride,
 } from './course-stats.helper';
-import {
-  toCourseDetailDto,
-  toCourseSummaryDto,
-} from './course-mapper';
+import { toCourseDetailDto, toCourseSummaryDto } from './course-mapper';
 import {
   toFaqDto,
   toFeatureDto,
@@ -72,9 +66,7 @@ export class CoursesService {
     query: ListCoursesQueryDto,
   ): Promise<PaginatedResponse<CourseSummaryDto>> {
     if (query.pathId && query.standalone === true) {
-      throw new BadRequestException(
-        'Cannot supply both pathId and standalone',
-      );
+      throw new BadRequestException('Cannot supply both pathId and standalone');
     }
 
     const page = query.page ?? 1;

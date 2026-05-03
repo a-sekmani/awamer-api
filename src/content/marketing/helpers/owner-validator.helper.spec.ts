@@ -17,10 +17,7 @@ describe('OwnerValidator', () => {
       course: { findUnique: jest.fn() },
     };
     const moduleRef = await Test.createTestingModule({
-      providers: [
-        OwnerValidator,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [OwnerValidator, { provide: PrismaService, useValue: prisma }],
     }).compile();
     validator = moduleRef.get(OwnerValidator);
   });
@@ -51,9 +48,9 @@ describe('OwnerValidator', () => {
 
     it("throws NotFoundException when the course doesn't exist", async () => {
       prisma.course.findUnique.mockResolvedValue(null);
-      await expect(
-        validator.ensureCourseExists('nope'),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(validator.ensureCourseExists('nope')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 

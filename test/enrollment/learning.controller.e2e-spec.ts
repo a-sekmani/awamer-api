@@ -50,7 +50,9 @@ async function seedStandaloneLesson(suffix: string) {
           {
             title: 'S1',
             order: 0,
-            lessons: { create: [{ title: 'L1', order: 0, type: 'TEXT' as const }] },
+            lessons: {
+              create: [{ title: 'L1', order: 0, type: 'TEXT' as const }],
+            },
           },
         ],
       },
@@ -83,7 +85,9 @@ async function seedPathLesson(suffix: string) {
           {
             title: 'S1',
             order: 0,
-            lessons: { create: [{ title: 'L1', order: 0, type: 'TEXT' as const }] },
+            lessons: {
+              create: [{ title: 'L1', order: 0, type: 'TEXT' as const }],
+            },
           },
         ],
       },
@@ -132,7 +136,11 @@ describe('LearningController guard chain (e2e) — US8 + US9', () => {
     const user = await seedUser('ok');
     const { course, lesson } = await seedStandaloneLesson('ok');
     await prisma.courseEnrollment.create({
-      data: { userId: user.id, courseId: course.id, status: CourseEnrollmentStatus.ACTIVE },
+      data: {
+        userId: user.id,
+        courseId: course.id,
+        status: CourseEnrollmentStatus.ACTIVE,
+      },
     });
     const bearer = await signFor(app, user.id);
     const res = await request(app.getHttpServer())
@@ -146,7 +154,11 @@ describe('LearningController guard chain (e2e) — US8 + US9', () => {
     const user = await seedUser('patho');
     const { path, lesson } = await seedPathLesson('patho');
     await prisma.pathEnrollment.create({
-      data: { userId: user.id, pathId: path.id, status: EnrollmentStatus.ACTIVE },
+      data: {
+        userId: user.id,
+        pathId: path.id,
+        status: EnrollmentStatus.ACTIVE,
+      },
     });
     const bearer = await signFor(app, user.id);
     const res = await request(app.getHttpServer())
@@ -159,7 +171,11 @@ describe('LearningController guard chain (e2e) — US8 + US9', () => {
     const user = await seedUser('drop');
     const { course, lesson } = await seedStandaloneLesson('drop');
     await prisma.courseEnrollment.create({
-      data: { userId: user.id, courseId: course.id, status: CourseEnrollmentStatus.DROPPED },
+      data: {
+        userId: user.id,
+        courseId: course.id,
+        status: CourseEnrollmentStatus.DROPPED,
+      },
     });
     const bearer = await signFor(app, user.id);
     const res = await request(app.getHttpServer())
@@ -172,7 +188,11 @@ describe('LearningController guard chain (e2e) — US8 + US9', () => {
     const user = await seedUser('donec');
     const { course, lesson } = await seedStandaloneLesson('donec');
     await prisma.courseEnrollment.create({
-      data: { userId: user.id, courseId: course.id, status: CourseEnrollmentStatus.COMPLETED },
+      data: {
+        userId: user.id,
+        courseId: course.id,
+        status: CourseEnrollmentStatus.COMPLETED,
+      },
     });
     const bearer = await signFor(app, user.id);
     const res = await request(app.getHttpServer())
@@ -185,7 +205,11 @@ describe('LearningController guard chain (e2e) — US8 + US9', () => {
     const user = await seedUser('pause');
     const { path, lesson } = await seedPathLesson('pause');
     await prisma.pathEnrollment.create({
-      data: { userId: user.id, pathId: path.id, status: EnrollmentStatus.PAUSED },
+      data: {
+        userId: user.id,
+        pathId: path.id,
+        status: EnrollmentStatus.PAUSED,
+      },
     });
     const bearer = await signFor(app, user.id);
     const res = await request(app.getHttpServer())
@@ -199,7 +223,11 @@ describe('LearningController guard chain (e2e) — US8 + US9', () => {
     const { lesson } = await seedStandaloneLesson('cross');
     const { path } = await seedPathLesson('cross2');
     await prisma.pathEnrollment.create({
-      data: { userId: user.id, pathId: path.id, status: EnrollmentStatus.ACTIVE },
+      data: {
+        userId: user.id,
+        pathId: path.id,
+        status: EnrollmentStatus.ACTIVE,
+      },
     });
     const bearer = await signFor(app, user.id);
     const res = await request(app.getHttpServer())

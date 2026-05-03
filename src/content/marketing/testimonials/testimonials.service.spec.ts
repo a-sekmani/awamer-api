@@ -1,10 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import {
-  MarketingOwnerType,
-  Prisma,
-  TestimonialStatus,
-} from '@prisma/client';
+import { MarketingOwnerType, Prisma, TestimonialStatus } from '@prisma/client';
 import { CacheService } from '../../../common/cache/cache.service';
 import { RevalidationHelper } from '../../../common/cache/revalidation.helper';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -70,7 +66,9 @@ describe('TestimonialsService', () => {
         delete: jest.fn(),
       },
     };
-    ownerValidator = { ensureOwnerExists: jest.fn().mockResolvedValue(undefined) };
+    ownerValidator = {
+      ensureOwnerExists: jest.fn().mockResolvedValue(undefined),
+    };
     reorderHelper = { reorder: jest.fn().mockResolvedValue(undefined) };
     cache = {
       invalidateOwner: jest.fn().mockResolvedValue(undefined),
@@ -100,7 +98,9 @@ describe('TestimonialsService', () => {
         content: 'c',
       });
       expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
-      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith(
+        '/paths/some-slug',
+      );
     });
 
     it('update calls invalidateOwner and revalidatePath', async () => {
@@ -115,7 +115,9 @@ describe('TestimonialsService', () => {
       );
       await service.updateStatus('u', { status: TestimonialStatus.APPROVED });
       expect(cache.invalidateOwner).toHaveBeenCalledWith('path', 'p1');
-      expect(revalidation.revalidatePath).toHaveBeenCalledWith('/paths/some-slug');
+      expect(revalidation.revalidatePath).toHaveBeenCalledWith(
+        '/paths/some-slug',
+      );
     });
 
     it('remove calls invalidateOwner and revalidatePath', async () => {
@@ -142,7 +144,11 @@ describe('TestimonialsService', () => {
       where: { ownerType: MarketingOwnerType.PATH, ownerId: 'p1' },
       orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
     });
-    expect(result.map((r) => r.status)).toEqual(['PENDING', 'APPROVED', 'HIDDEN']);
+    expect(result.map((r) => r.status)).toEqual([
+      'PENDING',
+      'APPROVED',
+      'HIDDEN',
+    ]);
   });
 
   it('forces status PENDING on create even if caller tries to pass APPROVED', async () => {

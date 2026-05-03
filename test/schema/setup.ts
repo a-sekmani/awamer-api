@@ -65,5 +65,7 @@ const TABLES = [
 
 export async function truncateAll(): Promise<void> {
   const quoted = TABLES.map((t) => `"${t}"`).join(', ');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE;`);
+  await prisma.$executeRawUnsafe(
+    `TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE;`,
+  );
 }

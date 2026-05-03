@@ -1,11 +1,5 @@
 import { Transform } from 'class-transformer';
-import {
-  IsEnum,
-  IsOptional,
-  IsString,
-  Length,
-  Matches,
-} from 'class-validator';
+import { IsEnum, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { TagStatus } from '@prisma/client';
 
 export class UpdateTagDto {

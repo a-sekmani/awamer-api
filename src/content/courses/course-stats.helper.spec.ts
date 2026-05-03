@@ -11,10 +11,7 @@ describe('computeCourseStats', () => {
     const course = {
       sections: [
         {
-          lessons: [
-            { estimatedMinutes: 10 },
-            { estimatedMinutes: 20 },
-          ],
+          lessons: [{ estimatedMinutes: 10 }, { estimatedMinutes: 20 }],
         },
         { lessons: [{ estimatedMinutes: null }, { estimatedMinutes: 5 }] },
       ],
@@ -29,7 +26,9 @@ describe('computeCourseStats', () => {
   });
 
   it('handles a course with zero sections', () => {
-    expect(computeCourseStats({ sections: [], _count: { projects: 0 } })).toEqual({
+    expect(
+      computeCourseStats({ sections: [], _count: { projects: 0 } }),
+    ).toEqual({
       sectionCount: 0,
       lessonCount: 0,
       totalDurationMinutes: 0,
@@ -61,10 +60,7 @@ describe('buildCourseOrderBy (FR-030a)', () => {
   }
 
   it('default query → [{ order: asc }, { id: asc }]', () => {
-    expect(buildCourseOrderBy(q())).toEqual([
-      { order: 'asc' },
-      { id: 'asc' },
-    ]);
+    expect(buildCourseOrderBy(q())).toEqual([{ order: 'asc' }, { id: 'asc' }]);
   });
 
   it('?sort=title&order=desc → [{ title: desc }, { id: asc }]', () => {

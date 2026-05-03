@@ -42,7 +42,7 @@ export async function createTestApp(): Promise<{
     await redis.flushdb();
   } catch (error) {
     // CacheModule may not be loaded in some test setups — that's fine.
-    // eslint-disable-next-line no-console
+
     console.warn(
       `Redis flushdb skipped in test bootstrap: ${(error as Error).message}`,
     );

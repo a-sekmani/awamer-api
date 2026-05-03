@@ -103,7 +103,10 @@ describe('PathsService', () => {
 
   describe('listPublic', () => {
     it('cache hit → returns cached result without touching Prisma', async () => {
-      const cached = { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } };
+      const cached = {
+        data: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+      };
       cache.get.mockResolvedValue(cached);
       const result = await service.listPublic(q());
       expect(result).toBe(cached);
@@ -116,7 +119,12 @@ describe('PathsService', () => {
       prisma.path.count.mockResolvedValue(1);
       const result = await service.listPublic(q());
       expect(result.data).toHaveLength(1);
-      expect(result.meta).toEqual({ total: 1, page: 1, limit: 20, totalPages: 1 });
+      expect(result.meta).toEqual({
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
       expect(cache.set).toHaveBeenCalled();
     });
 
@@ -185,7 +193,13 @@ describe('PathsService', () => {
 
   describe('findDetailBySlug', () => {
     it('cache hit → returns cached without touching Prisma', async () => {
-      const cached = { path: {}, curriculum: [], features: [], faqs: [], testimonials: [] };
+      const cached = {
+        path: {},
+        curriculum: [],
+        features: [],
+        faqs: [],
+        testimonials: [],
+      };
       cache.get.mockResolvedValue(cached);
       const result = await service.findDetailBySlug('s');
       expect(result).toBe(cached);
@@ -217,7 +231,9 @@ describe('PathsService', () => {
 
     it('throws NotFoundException when status != PUBLISHED', async () => {
       cache.get.mockResolvedValue(null);
-      prisma.path.findUnique.mockResolvedValue(fakePathRow({ status: 'DRAFT' }));
+      prisma.path.findUnique.mockResolvedValue(
+        fakePathRow({ status: 'DRAFT' }),
+      );
       await expect(service.findDetailBySlug('s')).rejects.toThrow(
         NotFoundException,
       );

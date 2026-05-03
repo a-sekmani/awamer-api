@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TagStatus } from '@prisma/client';
 import { CacheKeys } from '../../../common/cache/cache-keys';
@@ -22,12 +19,14 @@ function makePrismaMock() {
   const tagStore = new Map<string, TagStatus>();
   const tx: FakeTx = {
     tag: {
-      findMany: jest.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
-        ops.push({ kind: 'tag.findMany', args: where });
-        return where.id.in
-          .filter((id) => tagStore.has(id))
-          .map((id) => ({ id, status: tagStore.get(id) as TagStatus }));
-      }),
+      findMany: jest.fn(
+        async ({ where }: { where: { id: { in: string[] } } }) => {
+          ops.push({ kind: 'tag.findMany', args: where });
+          return where.id.in
+            .filter((id) => tagStore.has(id))
+            .map((id) => ({ id, status: tagStore.get(id) as TagStatus }));
+        },
+      ),
     },
     pathTag: {
       deleteMany: jest.fn(async (args: unknown) => {
@@ -50,8 +49,8 @@ function makePrismaMock() {
       }),
     },
   };
-  const $transaction = jest.fn(
-    async (cb: (tx: FakeTx) => Promise<unknown>) => cb(tx),
+  const $transaction = jest.fn(async (cb: (tx: FakeTx) => Promise<unknown>) =>
+    cb(tx),
   );
   return { $transaction, tx, ops, tagStore };
 }
@@ -78,15 +77,23 @@ describe('ReplaceTagAssociationsHelper', () => {
     it('replaceForPath invalidates paths:list:* and courses:list:*', async () => {
       prisma.tagStore.set('t1', TagStatus.ACTIVE);
       await helper.replaceForPath('p1', ['t1']);
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.paths.listPattern(),
+      );
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.courses.listPattern(),
+      );
     });
 
     it('replaceForCourse invalidates paths:list:* and courses:list:*', async () => {
       prisma.tagStore.set('t1', TagStatus.ACTIVE);
       await helper.replaceForCourse('c1', ['t1']);
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.paths.listPattern());
-      expect(cache.delByPattern).toHaveBeenCalledWith(CacheKeys.courses.listPattern());
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.paths.listPattern(),
+      );
+      expect(cache.delByPattern).toHaveBeenCalledWith(
+        CacheKeys.courses.listPattern(),
+      );
     });
   });
 
@@ -124,12 +131,12 @@ describe('ReplaceTagAssociationsHelper', () => {
       await expect(
         helper.replaceForPath('p1', ['t1', 'ghost']),
       ).rejects.toBeInstanceOf(NotFoundException);
-      expect(
-        prisma.ops.some((o) => o.kind === 'pathTag.createMany'),
-      ).toBe(false);
+      expect(prisma.ops.some((o) => o.kind === 'pathTag.createMany')).toBe(
+        false,
+      );
     });
 
-    it("rejects a hidden tag id with BadRequestException", async () => {
+    it('rejects a hidden tag id with BadRequestException', async () => {
       prisma.tagStore.set('t1', TagStatus.ACTIVE);
       prisma.tagStore.set('t-hidden', TagStatus.HIDDEN);
       await expect(
@@ -168,9 +175,7 @@ describe('ReplaceTagAssociationsHelper', () => {
       const kinds = prisma.ops.map((o) => o.kind);
       expect(kinds).toContain('courseTag.deleteMany');
       expect(kinds).toContain('courseTag.createMany');
-      const create = prisma.ops.find(
-        (o) => o.kind === 'courseTag.createMany',
-      );
+      const create = prisma.ops.find((o) => o.kind === 'courseTag.createMany');
       const data = (create?.args as { data: { tagId: string }[] }).data;
       expect(data.length).toBe(2);
     });
